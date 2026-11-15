@@ -368,3 +368,30 @@ def test_history_api(server):
     rows = json.loads(body)
     assert status == 200 and 90 <= len(rows) <= 100 and rows[-1]["level"] == "bad"
     assert request(server, "/api/history?days=abc")[0] == 200
+
+
+def test_weekly_summary():
+    from olympos import summary
+    snap = demo.snapshot(NOW)
+    rows = demo.history(7, NOW)
+    s = summary.build(rows, snap, 7, NOW)
+    assert s["verdict"] == "worse" and s["problems_start"] == 0 and s["problems_end"] == 2
+    assert 19 <= s["ci_red_hours"] <= 22, "CI failed for about 20 h of the demo week"
+    assert s["worst_backup_age_h"] == 48.0 and s["disk_start"] < s["disk_end"] == 88.0
+    assert sum(s["level_share"].values()) in (99, 100, 101)
+    assert len(s["still_open"]) == 5
+    body = summary.text(s)
+    assert body.startswith("Last 7 days: worse.") and "CI was red for about" in body and "Still open:" in body
+    empty = summary.build([], {"findings": [], "level": "ok"}, 7, NOW)
+    assert empty["verdict"] == "no history yet" and "No history yet" in summary.text(empty)
+    better = summary.build([{"t": iso(days=2), "bad": 3, "level": "bad"}, {"t": iso(), "bad": 0, "level": "ok"}],
+                           {"findings": [], "level": "ok"}, 7, NOW)
+    assert better["verdict"] == "better" and "Nothing is open right now." in summary.text(better)
+
+
+def test_summary_command(capsys):
+    from olympos import __main__ as cli
+    assert cli.main(["summary", "--demo", "--days", "1"]) == 0
+    assert capsys.readouterr().out.startswith("Last 24 hours:")
+    assert cli.main(["summary", "--demo", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["verdict"] == "worse"

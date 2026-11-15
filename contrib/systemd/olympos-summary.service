@@ -1,0 +1,8 @@
+[Unit]
+Description=Olympos: weekly summary as a desktop notification
+
+[Service]
+Type=oneshot
+# Edit to where your checkout is (the settings file is found next to it).
+WorkingDirectory=%h/projects/olympos
+ExecStart=/usr/bin/python3 -m olympos summary --notify

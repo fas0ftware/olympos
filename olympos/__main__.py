@@ -55,6 +55,15 @@ def print_status(snap: dict, all_projects: bool) -> None:
         print(f"  backup {b['repo']}: last good {age or 'never'}, {b['snapshots']} snapshots")
 
 
+def _notify_summary(s: dict, body: str) -> None:
+    import shutil
+    import subprocess  # nosec B404
+    exe = shutil.which("notify-send")
+    if exe:
+        subprocess.run([exe, "-a", "Olympos", "-i", "dialog-information", f"Olympos: the last week ({s['verdict']})",  # nosec B603
+                        body[:900]], check=False, timeout=10)
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="olympos", description="How every project and home system is doing.")
     p.add_argument("--version", action="version", version=f"olympos {__version__}")
@@ -65,9 +74,13 @@ def main(argv=None) -> int:
     js = sub.add_parser("json", help="everything as JSON")
     sv = sub.add_parser("serve", help="the browser interface on 127.0.0.1")
     sv.add_argument("--port", type=int, default=8746)
+    sm = sub.add_parser("summary", help="what the last days looked like and what is still open")
+    sm.add_argument("--days", type=float, default=7)
+    sm.add_argument("--notify", action="store_true", help="also as a desktop notification")
+    sm.add_argument("--json", action="store_true")
     rec = sub.add_parser("record", help="save a history sample; notify when things got worse (run by a timer)")
     rec.add_argument("--no-notify", action="store_true")
-    for sp in (st, js, sv, rec):
+    for sp in (st, js, sv, rec, sm):
         sp.add_argument("--demo", action="store_true", help="fictional data, no settings needed")
     args = p.parse_args(argv)
     if getattr(args, "demo", False):
@@ -85,6 +98,16 @@ def main(argv=None) -> int:
         serve(state, args.port)
         return 0
     snap = state.snapshot(wait_remote=True)
+    if args.cmd == "summary":
+        from . import history, summary
+        days = max(0.1, min(args.days, history.KEEP_DAYS))
+        rows = state.history(days) if hasattr(state, "history") else history.read(history.default_path(), days)
+        s = summary.build(rows, snap, days)
+        body = summary.text(s)
+        print(json.dumps(s, indent=2) if args.json else body)
+        if args.notify:
+            _notify_summary(s, body)
+        return 0
     if args.cmd == "record":
         from . import history
         path = history.default_path()

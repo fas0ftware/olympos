@@ -1,7 +1,7 @@
 # Olympos
 
 [![CI](https://github.com/fas0ftware/olympos/actions/workflows/ci.yml/badge.svg)](https://github.com/fas0ftware/olympos/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
+![Version](https://img.shields.io/badge/version-0.3.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -108,6 +108,25 @@ systemctl --user daemon-reload && systemctl --user enable --now olympos-record.t
 The page draws the samples of the last day, week or month: the overall level as a
 coloured strip and a line for each number.
 
+`python -m olympos summary [--days 7] [--notify] [--json]` turns the history into a short
+report: better, worse or steady; how much of the time things were green, yellow and red;
+how long CI was red; the longest stretch without a good backup; how the fullest disk grew;
+DNS blocks per day; and what is still open now. `contrib/systemd/olympos-summary.timer`
+sends it as a notification every Monday at 09:00.
+
+```text
+$ python -m olympos summary --demo
+Last 7 days: worse. Green 0%, yellow 59%, red 41% of the time.
+Problems: 0 at the start, 2 now (at most 2).
+CI was red for about 20.2 h.
+Backups: the longest gap reached 48.0 h.
+Fullest disk: 84% → 88%.
+DNS filter: about 3,050 blocked per day.
+Still open:
+  ✗ /media/backup-disk/Mnemosyne: last good backup is 2 days old
+  ...
+```
+
 ## Settings
 
 `olympos.toml` describes your machine, so it is in `.gitignore`. The annotated template
@@ -199,7 +218,7 @@ olympos/
 
 - ~~History: keep a small daily record and draw how backups, CI and disks did over weeks.~~ Done in 0.2.
 - ~~Desktop notification when the overall level gets worse.~~ Done in 0.2.
-- Weekly summary (what got better, what is still open).
+- ~~Weekly summary (what got better, what is still open).~~ Done in 0.3.
 - Tests and coverage per project, read from the CI artifacts.
 
 ## License
