@@ -35,6 +35,7 @@ class Settings:
     backup_max_age_hours: float = 3.0
     check_max_age_days: float = 3.0
     cerberus_url: str = ""
+    pythia_status: Path | None = None   # Pythia's status file; None = not watched
     disks: list[Path] = field(default_factory=list)
     disk_warn_percent: int = 85
     sites: list[Site] = field(default_factory=list)
@@ -86,6 +87,9 @@ def parse(raw: dict) -> Settings:
     if s.cerberus_url and not s.cerberus_url.startswith(("http://127.0.0.1:", "http://localhost:")):
         # It is read without a token, which Cerberus only allows on the machine itself.
         raise ConfigError("cerberus.url must be a local address (http://127.0.0.1:PORT)")
+    py = raw.get("pythia", {})
+    if py:
+        s.pythia_status = Path(py.get("status_file", "~/.local/state/pythia/status.json")).expanduser()
     d = raw.get("disks", {})
     s.disks = [Path(p).expanduser() for p in _list(d, "paths")]
     s.disk_warn_percent = int(d.get("warn_percent", s.disk_warn_percent))

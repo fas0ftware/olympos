@@ -214,7 +214,7 @@ def test_demo_snapshot_is_consistent():
     texts = {(f["subject"], f["level"]) for f in s["findings"]}
     assert ("olympos", "warn") in texts and ("/media/backup-disk/Mnemosyne", "bad") in texts
     pythia = next(p for p in s["projects"] if p["name"] == "pythia")
-    assert pythia["stage"] == "idea" and pythia["github"] is None
+    assert pythia["github"] is None and s["pythia"]["blocking"] is True
     json.dumps(s)
 
 
@@ -276,3 +276,20 @@ def test_web_serves_and_guards(server):
     assert request(server, "/api/refresh", "POST", origin, b"{}")[0] == 200
     assert request(server, "/api/refresh", "POST", {**origin, "Origin": "http://evil.example"}, b"{}")[0] == 403
     assert request(server, "/api/refresh", "POST", {**origin, "Content-Type": "text/plain"}, b"{}")[0] == 415
+
+
+def test_pythia_status_and_rules(tmp_path):
+    assert health.pythia(None, False) == []
+    assert health.pythia(None, True)[0].level == "warn"
+    f = tmp_path / "status.json"
+    f.write_text(json.dumps({"version": "0.1.0", "blocking": False, "domains_on_lists": 50, "at_home": False,
+                             "upstreams": [{"server": "1.1.1.1:53", "failures_in_a_row": 5}], "secret": "x"}))
+    st = systems.pythia(f)
+    assert st["age_s"] < 5 and "secret" not in st
+    texts = {(x.level, x.text) for x in health.pythia(st, True)}
+    assert ("warn", "blocking is paused") in texts and ("warn", "block lists are empty (update failed?)") in texts
+    assert ("warn", "upstream 1.1.1.1:53 is failing") in texts
+    assert ("bad", "stopped: last status 10 min ago") in {(x.level, x.text) for x in health.pythia({**st, "age_s": 600}, True)}
+    assert systems.pythia(tmp_path / "missing.json") is None
+    assert config.parse({"pythia": {}}).pythia_status is None
+    assert config.parse({"pythia": {"status_file": "/x/s.json"}}).pythia_status == Path("/x/s.json")

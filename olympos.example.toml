@@ -18,6 +18,10 @@ check_max_age_days = 3     # data should be re-verified at least this often
 # Local Cerberus dashboard; read without a token, so only 127.0.0.1 / localhost.
 # url = "http://127.0.0.1:8470"
 
+[pythia]
+# Pythia's status file (written every 30 s); remove this section if you do not run Pythia.
+# status_file = "~/.local/state/pythia/status.json"
+
 [disks]
 paths = ["/"]
 warn_percent = 85

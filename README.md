@@ -46,6 +46,7 @@ versions and roadmaps, on a made-up machine (paths, times, backups and network a
 | **Backups** | [Mnemosyne](https://github.com/fas0ftware/mnemosyne)'s status file | last attempt, last *good* backup, last verification, snapshots, size |
 | **Services** | `systemctl --user show` | for a timer also the result of the job it last started (a timer can be "active" while every backup fails) |
 | **Network** | a local [Cerberus](https://github.com/fas0ftware) dashboard (`/api/summary`) | devices online, risky ports, decoy touches, alert level |
+| **DNS filter** | [Pythia](https://github.com/fas0ftware/pythia)'s status file | blocking or paused, queries and blocks in 24 h, upstream health; "stopped" when the file is more than 3 minutes old |
 | **Disks** | `statvfs` | free space, or "not mounted" for an unplugged backup disk |
 | **Websites** | an HTTP `HEAD` | status code and response time |
 
@@ -123,7 +124,7 @@ note = "replaced by my-new-tool"
 |---|---|
 | **problem** | CI failing; a backup failed, is older than `max_age_hours` or never succeeded; a verification found damage; a service failed or is not installed; the last job a timer started failed; a disk is not mounted or 95 % full; a website is down; decoy touches or high alerts in Cerberus |
 | **warning** | unpushed commits; a timer that is not running; data not verified for `check_max_age_days`; a disk over `warn_percent`; risky ports on the network; Cerberus not reachable; a git or GitHub error |
-| **note** (hidden unless *show notes*) | uncommitted files, a feature branch, open pull requests, commits to pull, a project with no GitHub repository yet, new devices on the network |
+| **note** (hidden unless *show notes*) | uncommitted files, a feature branch, open pull requests, commits to pull, a project with no GitHub repository yet, new devices on the network, Pythia away from home |
 
 ## Security and privacy
 
@@ -177,7 +178,6 @@ olympos/
 
 - History: keep a small daily record and draw how backups, CI and disks did over weeks.
 - Desktop notification when the overall level gets worse.
-- Pythia (a network-wide DNS blocker, next project) as another source.
 - Tests and coverage per project, read from the CI artifacts.
 
 ## License

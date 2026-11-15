@@ -51,8 +51,8 @@ def snapshot(now: datetime | None = None) -> dict:
         _project(now, "Project_Hugnin", "Python", "3.1.0", "active", {"days": 2}),
         _project(now, "Project_Orion", "Python", "2.1.0", "active", {"days": 2}),
         _project(now, "Zarathustra_TTS", "Python", "2.1.0", "maintained", {"days": 20}),
-        _project(now, "pythia", "Rust", "0.0.1", "idea", {"hours": 3}, remote="", upstream=False,
-                 stage_source="config", note="network-wide DNS blocker; next project"),
+        _project(now, "pythia", "Python", "0.1.0", "active", {"hours": 3}, remote="", upstream=False,
+                 next_step="Encrypted upstream (DNS over TLS) so the provider cannot read the names."),
     ]
     repos = [_repo(now, p["name"]) for p in projects if p["remote"]] + [_repo(now, "fas0ftware", ci="")]
     units = [
@@ -90,7 +90,13 @@ def snapshot(now: datetime | None = None) -> dict:
               "free": 120_000_000_000, "percent": 88.0}]
     sites = [{"name": "FA Software website", "url": "https://fas0ftware.github.io/FA_Software_web/", "status": 200, "ms": 412, "error": "",
               "checked": _iso(now, minutes=2)}]
+    pythia = {"version": "0.1.0", "listening": ["127.0.0.1:53", "192.168.1.10:53"], "at_home": True, "blocking": True,
+              "paused_until": "", "domains_on_lists": 77309, "queries_24h": 18240, "blocked_24h": 3310,
+              "blocked_percent_24h": 18.1, "clients": 7, "errors_24h": 2,
+              "upstreams": [{"server": "1.1.1.1:53", "failures_in_a_row": 0}], "lists_updated": _iso(now, hours=6),
+              "age_s": 12}
     local = {"projects": projects, "units": units, "backups": backups, "cerberus": cerberus, "cerberus_error": None,
+             "pythia": pythia, "pythia_configured": True,
              "disks": disks, "errors": []}
     remote = {"repos": repos, "sites": sites, "errors": [], "at": _iso(now, minutes=2)}
     return build(s, local, remote, now)

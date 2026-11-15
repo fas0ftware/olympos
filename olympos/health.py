@@ -136,6 +136,26 @@ def cerberus(summary: dict | None, error: str | None) -> list[Finding]:
     return out
 
 
+def pythia(status: dict | None, configured: bool) -> list[Finding]:
+    if not configured:
+        return []
+    if status is None:
+        return [Finding("warn", "dns", "Pythia", "not running yet (no status file)")]
+    if status.get("age_s", 0) > 180:
+        return [Finding("bad", "dns", "Pythia", f"stopped: last status {human_age(status['age_s'] / 3600)} ago")]
+    out = []
+    if not status.get("blocking"):
+        out.append(Finding("warn", "dns", "Pythia", "blocking is paused"))
+    if (status.get("domains_on_lists") or 0) < 1000:
+        out.append(Finding("warn", "dns", "Pythia", "block lists are empty (update failed?)"))
+    for u in status.get("upstreams") or []:
+        if u.get("failures_in_a_row", 0) >= 3:
+            out.append(Finding("warn", "dns", "Pythia", f"upstream {u.get('server')} is failing"))
+    if status.get("at_home") is False:
+        out.append(Finding("info", "dns", "Pythia", "away from home: serving this machine only"))
+    return out
+
+
 def disks(items: list[dict], warn_percent: int) -> list[Finding]:
     out = []
     for d in items:

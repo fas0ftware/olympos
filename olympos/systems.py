@@ -158,6 +158,24 @@ def cerberus(base_url: str, get=_get_json) -> dict:
     return {k: s.get(k) for k in keep}
 
 
+# --- Pythia --------------------------------------------------------------------------------
+
+def pythia(status_file: Path) -> dict | None:
+    """Pythia's status file plus its age in seconds; None when it does not exist yet."""
+    try:
+        data = json.loads(status_file.read_text())
+        age = time.time() - status_file.stat().st_mtime
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"{status_file}: {exc}") from None
+    keep = ("version", "listening", "at_home", "blocking", "paused_until", "domains_on_lists", "queries_24h",
+            "blocked_24h", "blocked_percent_24h", "clients", "errors_24h", "upstreams", "lists_updated")
+    out = {k: data.get(k) for k in keep}
+    out["age_s"] = int(age)
+    return out
+
+
 # --- disks ---------------------------------------------------------------------------------
 
 @dataclass

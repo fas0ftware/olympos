@@ -157,6 +157,25 @@ function renderCerberus(s) {
     el("dl", { class: "kv" }, rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, String(v ?? "–"))])));
 }
 
+function renderPythia(s) {
+  $("#pythia-panel").hidden = !s.pythia_configured;
+  if (!s.pythia_configured) return;
+  const p = s.pythia;
+  if (!p) {
+    $("#pythia").replaceChildren(el("p", { class: "muted" }, "Not running yet: no status file."));
+    return;
+  }
+  const stale = p.age_s > 180;
+  const state = stale ? badge("stopped", "bad") : p.blocking ? badge("blocking", "good") : badge("paused", "warn");
+  const rows = [["queries (24 h)", p.queries_24h], ["blocked (24 h)", `${p.blocked_24h} (${p.blocked_percent_24h}%)`],
+    ["devices", p.clients], ["domains on lists", (p.domains_on_lists || 0).toLocaleString()],
+    ["listening", (p.listening || []).join(", ")], ["at home", p.at_home ? "yes" : "no (this machine only)"],
+    ["upstream errors (24 h)", p.errors_24h], ["status written", `${p.age_s} s ago`]];
+  $("#pythia").replaceChildren(
+    el("div", { class: "item__head" }, el("span", { class: "muted" }, `Pythia ${p.version}`), state),
+    el("dl", { class: "kv" }, rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, String(v ?? "–"))])));
+}
+
 function renderUnits(s) {
   if (!s.units.length) {
     $("#units").replaceChildren(el("p", { class: "muted" }, "No units configured."));
@@ -208,6 +227,7 @@ function render(s) {
   renderProjects(s);
   renderBackups(s);
   renderCerberus(s);
+  renderPythia(s);
   renderUnits(s);
   renderDisksSites(s);
 }
