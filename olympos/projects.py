@@ -16,6 +16,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 GIT_TIMEOUT = 15
+# A repository's own config could name a program to run (core.fsmonitor) on `git status`.
+# Olympos only reads, so those are switched off for every call.
+SAFE = ("-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false", "--no-pager")
 ACTIVE_DAYS = 14
 MAINTAINED_DAYS = 90
 
@@ -46,7 +49,7 @@ class Project:
 
 
 def git(path: Path, *args: str) -> str:
-    out = subprocess.run(["git", "-C", str(path), *args], capture_output=True, text=True,  # nosec B603 B607
+    out = subprocess.run(["git", *SAFE, "-C", str(path), *args], capture_output=True, text=True,  # nosec B603 B607
                          timeout=GIT_TIMEOUT, check=False)
     if out.returncode != 0:
         raise RuntimeError(out.stderr.strip().splitlines()[-1] if out.stderr.strip() else f"git {args[0]} failed")
@@ -183,11 +186,11 @@ def inspect(path: Path, notes: dict, now: datetime | None = None) -> Project:
     p.version = detect_version(path)
     try:
         # symbolic-ref also works before the first commit; detached HEAD falls back to a hash.
-        sym = subprocess.run(["git", "-C", str(path), "symbolic-ref", "--short", "-q", "HEAD"],  # nosec B603 B607
+        sym = subprocess.run(["git", *SAFE, "-C", str(path), "symbolic-ref", "--short", "-q", "HEAD"],  # nosec B603 B607
                              capture_output=True, text=True, timeout=GIT_TIMEOUT, check=False)
         p.branch = sym.stdout.strip() or git(path, "rev-parse", "--short", "HEAD").strip()
         p.dirty = len([line for line in git(path, "status", "--porcelain").splitlines() if line.strip()])
-        has_commits = subprocess.run(["git", "-C", str(path), "rev-parse", "--verify", "-q", "HEAD"],  # nosec B603 B607
+        has_commits = subprocess.run(["git", *SAFE, "-C", str(path), "rev-parse", "--verify", "-q", "HEAD"],  # nosec B603 B607
                                      capture_output=True, timeout=GIT_TIMEOUT, check=False).returncode == 0
         log = git(path, "log", "-1", "--format=%cI%x00%s").strip() if has_commits else ""
         if log:

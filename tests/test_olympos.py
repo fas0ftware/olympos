@@ -293,3 +293,24 @@ def test_pythia_status_and_rules(tmp_path):
     assert systems.pythia(tmp_path / "missing.json") is None
     assert config.parse({"pythia": {}}).pythia_status is None
     assert config.parse({"pythia": {"status_file": "/x/s.json"}}).pythia_status == Path("/x/s.json")
+
+
+def test_github_owner_is_validated(monkeypatch):
+    calls = []
+    monkeypatch.setattr(github.shutil, "which", lambda name: "/usr/bin/gh")
+    monkeypatch.setattr(github.subprocess, "run", lambda argv, **kw: calls.append(argv) or
+                        type("R", (), {"returncode": 0, "stdout": '{"data": {}}', "stderr": ""})())
+    for bad in ("@/etc/passwd", "@secrets", "a/b", "", "-x", "x" * 40):
+        with pytest.raises(RuntimeError):
+            github.fetch(bad)
+    assert calls == [], "nothing unsafe reaches gh"
+    github.fetch("fas0ftware")
+    assert "-f" in calls[0] and "-F" not in calls[0] and "owner=fas0ftware" in calls[0]
+
+
+def test_git_runs_without_repository_hooks(tmp_path):
+    r = make_repo(tmp_path / "evil", {"a.txt": "x"})
+    marker = tmp_path / "pwned"
+    git(r, "config", "core.fsmonitor", f"touch {marker}; false")
+    projects.inspect(r, {})
+    assert not marker.exists(), "core.fsmonitor from the repository must not run"

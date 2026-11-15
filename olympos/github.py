@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess  # nosec B404
 from dataclasses import asdict, dataclass
@@ -60,12 +61,18 @@ def parse(owner: str, data: dict) -> list[Repo]:
     return out
 
 
+OWNER = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")
+
+
 def fetch(owner: str, timeout: float = 30) -> list[Repo]:
     """Raises RuntimeError with a short reason when gh is missing, logged out or offline."""
+    if not OWNER.match(owner):
+        # The owner comes from a repository's remote URL. Never pass anything else to gh.
+        raise RuntimeError(f"{owner!r} is not a GitHub user or organisation name")
     gh = shutil.which("gh")
     if not gh:
         raise RuntimeError("the gh CLI is not installed")
-    out = subprocess.run([gh, "api", "graphql", "-f", f"query={QUERY}", "-F", f"owner={owner}"],  # nosec B603
+    out = subprocess.run([gh, "api", "graphql", "-f", f"query={QUERY}", "-f", f"owner={owner}"],  # nosec B603
                          capture_output=True, text=True, timeout=timeout, check=False)
     if out.returncode != 0:
         lines = out.stderr.strip().splitlines()
