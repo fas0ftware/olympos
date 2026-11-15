@@ -1,0 +1,9 @@
+[Unit]
+Description=Olympos history sample every 15 minutes
+
+[Timer]
+OnStartupSec=3min
+OnUnitActiveSec=15min
+
+[Install]
+WantedBy=timers.target

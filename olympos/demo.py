@@ -45,8 +45,8 @@ def snapshot(now: datetime | None = None) -> dict:
         _project(now, "maze", "Python", "0.3.1", "active", {"days": 6}),
         _project(now, "mnemosyne", "Rust", "0.1.0", "active", {"hours": 1},
                  next_step="Packs: many small chunks in one file (fewer files on slow USB sticks and network shares)."),
-        _project(now, "olympos", "Python", "0.1.0", "active", {"minutes": 20}, ahead=1, dirty=2,
-                 next_step="History: keep a small daily record and draw how backups, CI and disks did over weeks."),
+        _project(now, "olympos", "Python", "0.2.0", "active", {"minutes": 20}, ahead=1, dirty=2,
+                 next_step="Weekly summary (what got better, what is still open)."),
         _project(now, "Project-Enigma", "Python", "2.0.0", "maintained", {"days": 35}),
         _project(now, "Project_Hugnin", "Python", "3.1.0", "active", {"days": 2}),
         _project(now, "Project_Orion", "Python", "2.1.0", "active", {"days": 2}),
@@ -102,6 +102,35 @@ def snapshot(now: datetime | None = None) -> dict:
     return build(s, local, remote, now)
 
 
+def history(days: float = 7, now: datetime | None = None) -> list[dict]:
+    """A plausible week: a backup disk unplugged for two days, a CI failure fixed, a
+    growing disk, more ads blocked in the evenings."""
+    import math
+    now = now or datetime.now(timezone.utc)
+    out = []
+    steps = int(days * 24 * 4)
+    for i in range(steps, -1, -1):
+        t = now - timedelta(minutes=15 * i)
+        h = t.hour + t.minute / 60
+        unplugged = 48 >= i / 4 >= 0      # last two days
+        ci_red = 120 >= i / 4 >= 100
+        bad = (2 if unplugged else 0) + (1 if ci_red else 0)
+        evening = 0.5 + 0.5 * math.sin((h - 15) / 24 * 2 * math.pi)
+        out.append({
+            "t": t.isoformat(timespec="seconds"),
+            "level": "bad" if bad else "warn",
+            "bad": bad, "warn": 3, "projects": 13, "ci_failing": int(ci_red), "unpushed": 1 if 30 < i / 4 < 70 or i < 8 else 0,
+            "uncommitted": 1, "backup_age_h": round((48 - i / 4) if unplugged else (i % 4) * 0.25 + 0.2, 2),
+            "disk_max_percent": round(84 + 4 * (steps - i) / steps, 1),
+            "cerberus_online": 6 + int(evening * 3), "cerberus_risky": 1,
+            "pythia_queries_24h": int(15000 + 3000 * evening), "pythia_blocked_24h": int(2600 + 900 * evening),
+        })
+    return out
+
+
 class DemoState:
     def snapshot(self, force: bool = False, wait_remote: bool = False) -> dict:
         return snapshot()
+
+    def history(self, days: float = 7) -> list[dict]:
+        return history(days)

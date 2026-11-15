@@ -1,7 +1,7 @@
 # Olympos
 
 [![CI](https://github.com/fas0ftware/olympos/actions/workflows/ci.yml/badge.svg)](https://github.com/fas0ftware/olympos/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.2.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -29,6 +29,7 @@ versions and roadmaps, on a made-up machine (paths, times, backups and network a
 
 - [What it shows](#what-it-shows)
 - [Quick start](#quick-start)
+- [History and notifications](#history-and-notifications)
 - [Settings](#settings)
 - [What counts as a problem](#what-counts-as-a-problem)
 - [Security and privacy](#security-and-privacy)
@@ -86,6 +87,26 @@ Olympos 0.1.0: BAD · 13 projects · 13 public / 0 private on GitHub · 2 proble
   JUDA                 0.2.2    active      ci ✓ public
   ...
 ```
+
+## History and notifications
+
+`python -m olympos record` saves one small sample (numbers only: level, problem and
+warning counts, the oldest last backup, the fullest disk, Pythia and Cerberus counts,
+projects with unpushed work) to `~/.local/state/olympos/history.jsonl`, kept for 90
+days. When the overall level got worse since the previous sample, or stayed bad with
+more problems, it shows a desktop notification with the top findings (`notify-send`);
+nothing repeats while things stay the same.
+
+A timer runs it every 15 minutes, so the history grows even while the page is closed:
+
+```bash
+cp contrib/systemd/olympos-record.* ~/.config/systemd/user/
+$EDITOR ~/.config/systemd/user/olympos-record.service     # WorkingDirectory = your checkout
+systemctl --user daemon-reload && systemctl --user enable --now olympos-record.timer
+```
+
+The page draws the samples of the last day, week or month: the overall level as a
+coloured strip and a line for each number.
 
 ## Settings
 
@@ -176,8 +197,9 @@ olympos/
 
 ## Roadmap
 
-- History: keep a small daily record and draw how backups, CI and disks did over weeks.
-- Desktop notification when the overall level gets worse.
+- ~~History: keep a small daily record and draw how backups, CI and disks did over weeks.~~ Done in 0.2.
+- ~~Desktop notification when the overall level gets worse.~~ Done in 0.2.
+- Weekly summary (what got better, what is still open).
 - Tests and coverage per project, read from the CI artifacts.
 
 ## License

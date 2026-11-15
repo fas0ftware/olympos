@@ -18,6 +18,17 @@ def create_app(state: State) -> App:
     def get_state(query):
         return state.snapshot()
 
+    @app.get("/api/history")
+    def get_history(query):
+        from . import history
+        try:
+            days = min(max(float(query.get("days", "7")), 0.1), history.KEEP_DAYS)
+        except ValueError:
+            days = 7
+        if hasattr(state, "history"):
+            return state.history(days)
+        return history.read(history.default_path(), days)
+
     @app.post("/api/refresh")
     def refresh(body):
         # Re-read everything now and start a GitHub / website check in the background.

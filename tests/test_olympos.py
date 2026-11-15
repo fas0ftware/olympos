@@ -314,3 +314,57 @@ def test_git_runs_without_repository_hooks(tmp_path):
     git(r, "config", "core.fsmonitor", f"touch {marker}; false")
     projects.inspect(r, {})
     assert not marker.exists(), "core.fsmonitor from the repository must not run"
+
+
+# --- history and notifications ---------------------------------------------------------------
+
+def test_history_sample_append_read_trim(tmp_path):
+    from olympos import history
+    snap = demo.snapshot(NOW)
+    rec = history.sample(snap, NOW)
+    assert rec["level"] == "bad" and rec["projects"] == 13 and rec["disk_max_percent"] == 88.0
+    assert rec["backup_age_h"] == 48.0, "the backup furthest behind decides"
+    assert rec["pythia_blocked_24h"] == 3310 and "projects" in rec
+    assert not any(isinstance(v, str) and "/" in v for k, v in rec.items() if k != "t"), "numbers only, no paths"
+    path = tmp_path / "h.jsonl"
+    for days in (100, 50, 1):
+        history.append(path, {**rec, "t": iso(days=days)}, now=NOW)
+    with open(path, "a") as f:
+        f.write('{"t": "broken')                        # a crash mid-write
+    assert len(history.read(path)) == 3
+    assert len(history.read(path, days=60, now=NOW)) == 2
+    path.write_text("".join(json.dumps({**rec, "t": iso(days=d)}) + "\n" for d in range(120, 0, -1)) * 30)
+    history.append(path, {**rec, "t": iso()}, keep_days=90, now=NOW)
+    kept = history.read(path)
+    assert kept and min(r["t"] for r in kept) >= iso(days=90), "trimmed to 90 days"
+
+
+def test_got_worse_and_notify():
+    from olympos import history
+    ok, warn = {"level": "ok", "bad": 0}, {"level": "warn", "bad": 0}
+    bad1, bad2 = {"level": "bad", "bad": 1}, {"level": "bad", "bad": 2}
+    assert history.got_worse(ok, warn) and history.got_worse(warn, bad1) and history.got_worse(bad1, bad2)
+    assert not history.got_worse(bad2, bad1) and not history.got_worse(bad1, bad1) and not history.got_worse(warn, ok)
+    assert history.got_worse(None, bad1) and not history.got_worse(None, warn)
+    sent = []
+    history.notify(demo.snapshot(NOW), send=lambda t, b: sent.append((t, b)))
+    title, body = sent[0]
+    assert title == "Olympos: problems" and body.count("•") == 4
+
+
+def test_record_command(tmp_path, monkeypatch):
+    from olympos import __main__ as cli, history
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+    shown = []
+    monkeypatch.setattr(history, "notify", lambda snap, send=None: shown.append(snap["level"]) or True)
+    assert cli.main(["record", "--demo"]) == 0
+    assert cli.main(["record", "--demo"]) == 0
+    assert len(history.read(tmp_path / "olympos" / "history.jsonl")) == 2
+    assert shown == ["bad"], "notified once, not again while nothing got worse"
+
+
+def test_history_api(server):
+    status, _, body = request(server, "/api/history?days=1")
+    rows = json.loads(body)
+    assert status == 200 and 90 <= len(rows) <= 100 and rows[-1]["level"] == "bad"
+    assert request(server, "/api/history?days=abc")[0] == 200

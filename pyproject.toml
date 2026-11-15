@@ -1,6 +1,6 @@
 [project]
 name = "olympos"
-version = "0.1.0"
+version = "0.2.0"
 description = "One page that shows how every project and home system is doing"
 readme = "README.md"
 license = "MIT"

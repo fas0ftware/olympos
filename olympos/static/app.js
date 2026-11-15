@@ -210,6 +210,46 @@ function renderDisksSites(s) {
   }));
 }
 
+const SERIES = [
+  ["bad", "problems", (v) => String(v), "bad"],
+  ["backup_age_h", "oldest last backup (h)", (v) => (v == null ? "never" : v.toFixed(1)), null],
+  ["disk_max_percent", "fullest disk (%)", (v) => (v == null ? "–" : `${v}%`), null],
+  ["pythia_blocked_24h", "DNS blocked (24 h)", (v) => (v == null ? "–" : String(v)), null],
+  ["cerberus_online", "devices online", (v) => (v == null ? "–" : String(v)), null],
+  ["unpushed", "projects with unpushed work", (v) => String(v), null],
+];
+
+function renderHistory(rows) {
+  const box = $("#history");
+  if (!rows.length) {
+    box.replaceChildren(el("p", { class: "muted" }, "No history yet. The olympos-record timer saves a sample every 15 minutes."));
+    return;
+  }
+  const step = Math.max(1, Math.ceil(rows.length / 240));   // at most ~240 points per line
+  const pts = rows.filter((_, i) => i % step === 0 || i === rows.length - 1);
+  const strip = el("div", { class: "strip", title: "overall level, oldest left" },
+    pts.map((r) => el("span", { class: r.level, title: `${new Date(r.t).toLocaleString()}: ${r.level}` })));
+  const first = new Date(rows[0].t).toLocaleString(), last = rows[rows.length - 1];
+  const items = [el("div", { class: "hist__row hist__level" },
+    el("div", { class: "hist__head" }, el("span", {}, `overall level since ${first}`), el("span", { class: "hist__now" }, last.level)), strip)];
+  for (const [key, label, fmt, color] of SERIES) {
+    const values = pts.map((r) => r[key]).filter((v) => typeof v === "number");
+    if (!values.length) continue;
+    items.push(el("div", { class: "hist__row" },
+      el("div", { class: "hist__head" }, el("span", {}, label), el("span", { class: "hist__now" }, fmt(last[key]))),
+      (() => { const sp = sparkline(values); if (color) sp.classList.add(`spark--${color}`); return sp; })()));
+  }
+  box.replaceChildren(el("div", { class: "hist" }, items));
+}
+
+async function loadHistory() {
+  try {
+    renderHistory(await api(`/api/history?days=${encodeURIComponent($("#days").value)}`));
+  } catch (err) {
+    $("#history").replaceChildren(el("p", { class: "error" }, `History: ${err.message}`));
+  }
+}
+
 function render(s) {
   current = s;
   $("#error").hidden = true;
@@ -253,6 +293,9 @@ document.addEventListener("DOMContentLoaded", () => {
   for (const id of ["#filter", "#stage", "#show-info"]) {
     $(id).addEventListener("input", () => current && render(current));
   }
+  $("#days").addEventListener("input", loadHistory);
   load(false);
+  loadHistory();
   setInterval(() => load(false), 60000);
+  setInterval(loadHistory, 300000);
 });

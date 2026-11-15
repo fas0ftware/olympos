@@ -65,7 +65,9 @@ def main(argv=None) -> int:
     js = sub.add_parser("json", help="everything as JSON")
     sv = sub.add_parser("serve", help="the browser interface on 127.0.0.1")
     sv.add_argument("--port", type=int, default=8746)
-    for sp in (st, js, sv):
+    rec = sub.add_parser("record", help="save a history sample; notify when things got worse (run by a timer)")
+    rec.add_argument("--no-notify", action="store_true")
+    for sp in (st, js, sv, rec):
         sp.add_argument("--demo", action="store_true", help="fictional data, no settings needed")
     args = p.parse_args(argv)
     if getattr(args, "demo", False):
@@ -83,6 +85,16 @@ def main(argv=None) -> int:
         serve(state, args.port)
         return 0
     snap = state.snapshot(wait_remote=True)
+    if args.cmd == "record":
+        from . import history
+        path = history.default_path()
+        past = history.read(path)
+        current = history.sample(snap)
+        history.append(path, current)
+        if not args.no_notify and history.got_worse(past[-1] if past else None, current):
+            history.notify(snap)
+        print(f"recorded: {current['level']}, {current['bad']} problem(s), {current['warn']} warning(s)")
+        return 0
     if args.cmd == "json":
         print(json.dumps(snap, indent=2))
     else:

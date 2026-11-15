@@ -1,0 +1,9 @@
+[Unit]
+Description=Olympos: save a history sample, notify when things got worse
+
+[Service]
+Type=oneshot
+# Edit to where your checkout is (the settings file is found next to it).
+WorkingDirectory=%h/projects/olympos
+ExecStart=/usr/bin/python3 -m olympos record
+Nice=10

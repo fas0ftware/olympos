@@ -33,6 +33,19 @@
 .stage--paused, .stage--idea { color: var(--muted); }
 .stage--archived { color: var(--muted); text-decoration: line-through; }
 
+#days { width: auto; }
+.hist { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr)); gap: .9rem 1.4rem; }
+.hist__row { min-width: 0; }
+.hist__head { display: flex; justify-content: space-between; gap: .5rem; font-size: .8rem; color: var(--muted); }
+.hist__now { font-family: var(--mono); color: var(--text); }
+.strip { display: flex; height: 14px; border-radius: 4px; overflow: hidden; margin-top: .4rem; background: var(--panel-2); }
+.strip span { flex: 1 1 0; min-width: 0; }
+.strip .ok, .strip .info { background: var(--good); }
+.strip .warn { background: var(--warn); }
+.strip .bad { background: var(--bad); }
+.hist .spark { color: var(--accent); margin-top: .2rem; }
+.hist .spark--bad { color: var(--bad); }
+.hist__level { grid-column: 1 / -1; }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: .25rem .9rem; font-size: .9rem; margin: 0; }
 .kv dt { color: var(--muted); }
 .kv dd { margin: 0; font-family: var(--mono); }
