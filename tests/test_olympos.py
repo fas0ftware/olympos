@@ -121,7 +121,8 @@ def test_github_remote_and_stage():
 
 def svg(*lines):
     """A terminal image like the ones in the projects' docs/ (spaces as NBSP)."""
-    return "<svg>" + "".join(f'<text x="0">{l.replace(" ", "\u00a0")}</text>' for l in lines) + "</svg>"
+    nbsp = "\u00a0"
+    return "<svg>" + "".join(f'<text x="0">{line.replace(" ", nbsp)}</text>' for line in lines) + "</svg>"
 
 
 def test_test_counts_from_terminal_images():
