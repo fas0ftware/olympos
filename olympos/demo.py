@@ -15,15 +15,15 @@ def _iso(now: datetime, **delta) -> str:
 def _project(now, name, lang, version, stage, commit, **extra):
     p = {"name": name, "path": f"/home/user/projects/{name}", "language": lang, "version": version, "branch": "main",
          "dirty": 0, "ahead": 0, "behind": 0, "upstream": True, "last_commit": _iso(now, **commit),
-         "last_subject": "Update README", "commits": 42, "remote": f"example/{name}", "next_step": "",
+         "last_subject": "Update README", "commits": 42, "remote": f"fas0ftware/{name}", "next_step": "",
          "stage": stage, "stage_source": "activity", "note": "", "errors": []}
     p.update(extra)
     return p
 
 
 def _repo(now, name, visibility="PUBLIC", ci="SUCCESS", **extra):
-    r = {"owner": "example", "name": name, "visibility": visibility, "archived": False,
-         "pushed_at": _iso(now, hours=5), "url": f"https://github.com/example/{name}", "ci": ci,
+    r = {"owner": "fas0ftware", "name": name, "visibility": visibility, "archived": False,
+         "pushed_at": _iso(now, hours=5), "url": f"https://github.com/fas0ftware/{name}", "ci": ci,
          "open_prs": 0, "open_issues": 0}
     r.update(extra)
     return r
@@ -32,23 +32,29 @@ def _repo(now, name, visibility="PUBLIC", ci="SUCCESS", **extra):
 def snapshot(now: datetime | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
     s = Settings(backup_max_age_hours=3, check_max_age_days=3, disk_warn_percent=85)
+    # The author's own public projects (names, versions, roadmaps as on GitHub); paths, times
+    # and the machine around them are made up.
     projects = [
-        _project(now, "atlas", "Python", "2.4.0", "active", {"hours": 3},
-                 next_step="Export reports as PDF"),
-        _project(now, "beacon", "Rust", "0.9.1", "active", {"days": 2}, ahead=2, dirty=3,
-                 next_step="Windows support"),
-        _project(now, "chronicle", "TypeScript", "1.2.0", "maintained", {"days": 40},
-                 next_step="Phase 3: sync between devices"),
-        _project(now, "delta", "C", "1.0.3", "active", {"days": 1}),
-        _project(now, "ember", "Python", "0.1.0", "idea", {"days": 6}, remote="", upstream=False,
-                 stage_source="config", note="prototype; decide whether to continue"),
-        _project(now, "forge", "Rust", "3.0.0", "paused", {"days": 200}),
+        _project(now, "ariadne", "TypeScript", "1.1.1", "active", {"hours": 2},
+                 next_step="Phase 2: milestones (Category → Project → Sub-milestone, monthly/weekly/daily views)"),
+        _project(now, "daedalus", "Python", "0.2.0", "active", {"days": 1}),
+        _project(now, "janus", "C", "1.9.0", "active", {"days": 1},
+                 next_step="Integration as the scanning engine of Lynceus (via --json; Cerberus already uses it)"),
+        _project(now, "JUDA", "Python", "0.2.2", "active", {"days": 4}),
+        _project(now, "lynceus", "Python", "2.2.0", "active", {"days": 1}, next_step="Docker image"),
+        _project(now, "maze", "Python", "0.3.1", "active", {"days": 6}),
+        _project(now, "mnemosyne", "Rust", "0.1.0", "active", {"hours": 1},
+                 next_step="Packs: many small chunks in one file (fewer files on slow USB sticks and network shares)."),
+        _project(now, "olympos", "Python", "0.1.0", "active", {"minutes": 20}, ahead=1, dirty=2,
+                 next_step="History: keep a small daily record and draw how backups, CI and disks did over weeks."),
+        _project(now, "Project-Enigma", "Python", "2.0.0", "maintained", {"days": 35}),
+        _project(now, "Project_Hugnin", "Python", "3.1.0", "active", {"days": 2}),
+        _project(now, "Project_Orion", "Python", "2.1.0", "active", {"days": 2}),
+        _project(now, "Zarathustra_TTS", "Python", "2.1.0", "maintained", {"days": 20}),
+        _project(now, "pythia", "Rust", "0.0.1", "idea", {"hours": 3}, remote="", upstream=False,
+                 stage_source="config", note="network-wide DNS blocker; next project"),
     ]
-    repos = [
-        _repo(now, "atlas"), _repo(now, "beacon", open_prs=1), _repo(now, "chronicle", "PRIVATE"),
-        _repo(now, "delta", ci="FAILURE"), _repo(now, "forge", ci="", archived=True),
-        _repo(now, "old-website", ci=""),
-    ]
+    repos = [_repo(now, p["name"]) for p in projects if p["remote"]] + [_repo(now, "fas0ftware", ci="")]
     units = [
         {"name": "mnemosyne-backup.timer", "description": "Mnemosyne backup every hour", "load": "loaded",
          "active": "active", "sub": "waiting", "result": "success", "enabled": "enabled",
@@ -82,7 +88,7 @@ def snapshot(now: datetime | None = None) -> dict:
               "free": 189_000_000_000, "percent": 24.4},
              {"path": "/media/backup-disk", "mounted": True, "total": 1_000_000_000_000, "used": 880_000_000_000,
               "free": 120_000_000_000, "percent": 88.0}]
-    sites = [{"name": "Website", "url": "https://example.github.io/", "status": 200, "ms": 412, "error": "",
+    sites = [{"name": "FA Software website", "url": "https://fas0ftware.github.io/FA_Software_web/", "status": 200, "ms": 412, "error": "",
               "checked": _iso(now, minutes=2)}]
     local = {"projects": projects, "units": units, "backups": backups, "cerberus": cerberus, "cerberus_error": None,
              "disks": disks, "errors": []}

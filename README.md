@@ -22,7 +22,8 @@ Named after the mountain where the Greek gods sat and watched over everything.
 
 </details>
 
-The screenshots use the built-in demo data (`--demo`), not anyone's real machine.
+The screenshots use the built-in demo data (`--demo`): the author's own public projects with their real
+versions and roadmaps, on a made-up machine (paths, times, backups and network are fictional).
 
 ## Contents
 
@@ -70,17 +71,18 @@ problems, so it can drive a status-bar indicator or a cron mail.
 
 ```text
 $ python -m olympos status --demo
-Olympos 0.1.0: BAD · 6 projects · 5 public / 1 private on GitHub · 3 problem(s), 3 warning(s)
+Olympos 0.1.0: BAD · 13 projects · 13 public / 0 private on GitHub · 2 problem(s), 3 warning(s)
 
   ✗ /media/backup-disk/Mnemosyne: last backup failed: /media/backup-disk/Mnemosyne is not a Mnemosyne repository
   ✗ /media/backup-disk/Mnemosyne: last good backup is 2 days old
-  ✗ delta: CI is failing on the default branch
   ! /media/backup-disk: 88% full
   ! Cerberus: 1 risky port(s) open on the network
-  ! beacon: 2 commit(s) not pushed
+  ! olympos: 1 commit(s) not pushed
 
-  atlas                2.4.0    active      ci ✓ public
-  beacon               0.9.1    active      3 changed 2 unpushed ci ✓ public
+  ariadne              1.1.1    active      ci ✓ public
+  daedalus             0.2.0    active      ci ✓ public
+  janus                1.9.0    active      ci ✓ public
+  JUDA                 0.2.2    active      ci ✓ public
   ...
 ```
 

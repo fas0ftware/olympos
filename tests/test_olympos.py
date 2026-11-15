@@ -209,10 +209,12 @@ def test_project_health_and_worst():
 
 def test_demo_snapshot_is_consistent():
     s = demo.snapshot(NOW)
-    assert s["level"] == "bad" and s["counts"]["projects"] == 6 and s["counts"]["ci_failing"] == 1
-    assert [r["name"] for r in s["remote_only"]] == ["old-website"]
-    forge = next(p for p in s["projects"] if p["name"] == "forge")
-    assert forge["stage"] == "archived", "archived on GitHub overrides the activity guess"
+    assert s["counts"]["projects"] == 13 and s["counts"]["ci_failing"] == 0
+    assert [r["name"] for r in s["remote_only"]] == ["fas0ftware"]
+    texts = {(f["subject"], f["level"]) for f in s["findings"]}
+    assert ("olympos", "warn") in texts and ("/media/backup-disk/Mnemosyne", "bad") in texts
+    pythia = next(p for p in s["projects"] if p["name"] == "pythia")
+    assert pythia["stage"] == "idea" and pythia["github"] is None
     json.dumps(s)
 
 
@@ -267,7 +269,7 @@ def test_web_serves_and_guards(server):
     status, headers, body = request(server, "/")
     assert status == 200 and b"Olympos" in body and "script-src 'self'" in headers["Content-Security-Policy"]
     status, _, body = request(server, "/api/state")
-    assert status == 200 and json.loads(body)["counts"]["projects"] == 6
+    assert status == 200 and json.loads(body)["counts"]["projects"] == 13
     assert request(server, "/api/state", headers={"Host": "evil.example"})[0] == 403
     assert request(server, "/static/../olympos/config.py")[0] == 404
     origin = {"Origin": f"http://127.0.0.1:{server}", "Content-Type": "application/json"}

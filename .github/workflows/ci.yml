@@ -24,7 +24,7 @@ jobs:
       - name: Demo smoke test
         run: |
           python -m olympos status --demo || test $? -eq 3
-          python -m olympos json --demo | python -c "import json,sys; s=json.load(sys.stdin); assert s['counts']['projects'] == 6"
+          python -m olympos json --demo | python -c "import json,sys; s=json.load(sys.stdin); assert s['counts']['projects'] == 13"
 
   security:
     runs-on: ubuntu-latest
