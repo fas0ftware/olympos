@@ -1,0 +1,215 @@
+"""Systems: systemd user units, Mnemosyne backups, Cerberus, disks and websites."""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess  # nosec B404
+import time
+import urllib.error
+import urllib.request
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+
+# --- systemd user units ------------------------------------------------------------------
+
+PROPS = ["Id", "Description", "ActiveState", "SubState", "Result", "ExecMainStatus", "UnitFileState",
+         "LoadState", "Triggers", "LastTriggerUSec", "NextElapseUSecRealtime", "ExecMainExitTimestamp",
+         "ActiveEnterTimestamp"]
+
+
+@dataclass
+class Unit:
+    name: str
+    description: str = ""
+    load: str = ""
+    active: str = ""          # active / inactive / failed / activating
+    sub: str = ""             # running / waiting / dead / exited
+    result: str = ""          # success / exit-code / ...
+    enabled: str = ""
+    last_run: str = ""        # ISO; timers: last trigger, services: last exit or start
+    next_run: str = ""        # timers only
+    triggers: str = ""        # timers: the service they start
+    last_result: str = ""     # timers: result of that service's last run
+    last_status: int = 0
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+def parse_show(text: str) -> list[dict]:
+    """`systemctl show` output: blocks of key=value separated by blank lines."""
+    blocks, cur = [], {}
+    for line in text.splitlines():
+        if not line.strip():
+            if cur:
+                blocks.append(cur)
+                cur = {}
+            continue
+        k, _, v = line.partition("=")
+        cur[k] = v
+    if cur:
+        blocks.append(cur)
+    return blocks
+
+
+def _ts(value: str) -> str:
+    """systemctl --timestamp=unix gives "@1731690000"; empty or "n/a" when never."""
+    value = value.strip()
+    if value.startswith("@"):
+        try:
+            return datetime.fromtimestamp(int(value[1:]), timezone.utc).isoformat(timespec="seconds")
+        except ValueError:
+            return ""
+    return ""
+
+
+def _systemctl(*args: str) -> str:
+    exe = shutil.which("systemctl")
+    if not exe:
+        raise RuntimeError("systemctl not found")
+    out = subprocess.run([exe, "--user", "show", "--timestamp=unix", "-p", ",".join(PROPS), *args],  # nosec B603
+                         capture_output=True, text=True, timeout=10, check=False)
+    if out.returncode != 0:
+        raise RuntimeError(out.stderr.strip()[:200] or "systemctl failed")
+    return out.stdout
+
+
+def units(names: list[str], show=_systemctl) -> list[Unit]:
+    if not names:
+        return []
+    blocks = parse_show(show(*names))
+    result = []
+    for b in blocks:
+        u = Unit(name=b.get("Id", ""), description=b.get("Description", ""), load=b.get("LoadState", ""),
+                 active=b.get("ActiveState", ""), sub=b.get("SubState", ""), result=b.get("Result", ""),
+                 enabled=b.get("UnitFileState", ""), triggers=b.get("Triggers", "").split(" ")[0])
+        try:
+            u.last_status = int(b.get("ExecMainStatus", "0") or 0)
+        except ValueError:
+            pass
+        if u.name.endswith(".timer"):
+            u.last_run, u.next_run = _ts(b.get("LastTriggerUSec", "")), _ts(b.get("NextElapseUSecRealtime", ""))
+        else:
+            u.last_run = _ts(b.get("ExecMainExitTimestamp", "")) or _ts(b.get("ActiveEnterTimestamp", ""))
+        result.append(u)
+    # For timers, what matters is how the service they start ended last time.
+    services = [u.triggers for u in result if u.name.endswith(".timer") and u.triggers]
+    if services:
+        by_name = {b.get("Id", ""): b for b in parse_show(show(*services))}
+        for u in result:
+            b = by_name.get(u.triggers)
+            if b:
+                u.last_result = b.get("Result", "")
+                try:
+                    u.last_status = int(b.get("ExecMainStatus", "0") or 0)
+                except ValueError:
+                    pass
+    return result
+
+
+# --- Mnemosyne ----------------------------------------------------------------------------
+
+@dataclass
+class Backup:
+    repo: str
+    last_backup: dict | None = None
+    last_good_backup: dict | None = None
+    last_check: dict | None = None
+    snapshots: int = 0
+    repo_bytes: int = 0
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+def backups(status_file: Path) -> list[Backup]:
+    """Reads Mnemosyne's status file. Missing file = no backup has ever run: an empty list."""
+    try:
+        data = json.loads(status_file.read_text())
+    except FileNotFoundError:
+        return []
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"{status_file}: {exc}") from None
+    out = []
+    for repo, s in sorted((data.get("repos") or {}).items()):
+        if not isinstance(s, dict):
+            continue
+        out.append(Backup(repo=repo, last_backup=s.get("last_backup"), last_good_backup=s.get("last_good_backup"),
+                          last_check=s.get("last_check"), snapshots=int(s.get("snapshots") or 0),
+                          repo_bytes=int(s.get("repo_bytes") or 0)))
+    return out
+
+
+# --- Cerberus ------------------------------------------------------------------------------
+
+def _get_json(url: str, timeout: float = 5) -> dict:
+    req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "olympos"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
+        return json.loads(resp.read(1 << 20))
+
+
+def cerberus(base_url: str, get=_get_json) -> dict:
+    s = get(f"{base_url}/api/summary")
+    keep = ("version", "network", "last_sweep", "hosts", "online", "new_devices_24h", "untrusted",
+            "open_ports", "risky_ports", "decoy_touches_24h", "events_24h", "level")
+    return {k: s.get(k) for k in keep}
+
+
+# --- disks ---------------------------------------------------------------------------------
+
+@dataclass
+class Disk:
+    path: str
+    mounted: bool = False
+    total: int = 0
+    used: int = 0
+    free: int = 0
+    percent: float = 0.0
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+def disks(paths: list[Path]) -> list[Disk]:
+    out = []
+    for p in paths:
+        d = Disk(path=str(p))
+        if p.exists() and (str(p) == "/" or os.path.ismount(p)):
+            u = shutil.disk_usage(p)
+            d.mounted, d.total, d.used, d.free = True, u.total, u.used, u.free
+            d.percent = round(100 * u.used / u.total, 1) if u.total else 0.0
+        out.append(d)
+    return out
+
+
+# --- websites ------------------------------------------------------------------------------
+
+@dataclass
+class SiteCheck:
+    name: str
+    url: str
+    status: int = 0
+    ms: int = 0
+    error: str = ""
+    checked: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"))
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+def check_site(name: str, url: str, timeout: float = 10) -> SiteCheck:
+    c = SiteCheck(name, url)
+    start = time.monotonic()
+    try:
+        req = urllib.request.Request(url, method="HEAD", headers={"User-Agent": "olympos"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310
+            c.status = resp.status
+    except urllib.error.HTTPError as exc:
+        c.status = exc.code
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        c.error = str(getattr(exc, "reason", exc))[:200]
+    c.ms = int((time.monotonic() - start) * 1000)
+    return c

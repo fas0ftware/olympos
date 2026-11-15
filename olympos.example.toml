@@ -1,0 +1,36 @@
+# Copy to olympos.toml (next to this file) or ~/.config/olympos/olympos.toml and edit.
+# olympos.toml is in .gitignore: it describes your machine.
+
+# Folders scanned (two levels deep) for git repositories.
+roots = ["~/projects"]
+
+[services]
+# systemd --user units to watch. For a timer, the result of the job it starts is shown too.
+units = ["mnemosyne-backup.timer", "mnemosyne-maintain.timer"]
+
+[backups]
+# Mnemosyne's status file (this is the default).
+mnemosyne_status = "~/.local/state/mnemosyne/status.json"
+max_age_hours = 3          # a last good backup older than this is a problem
+check_max_age_days = 3     # data should be re-verified at least this often
+
+[cerberus]
+# Local Cerberus dashboard; read without a token, so only 127.0.0.1 / localhost.
+# url = "http://127.0.0.1:8470"
+
+[disks]
+paths = ["/"]
+warn_percent = 85
+
+[github]
+enabled = true             # uses the logged-in `gh` CLI; owners come from the repos' remotes
+cache_seconds = 300
+
+# [[sites]]
+# name = "Website"
+# url = "https://example.github.io/site/"
+
+# Optional per project (folder name): stage = idea | active | maintained | paused | archived
+# [projects.my-old-tool]
+# stage = "archived"
+# note = "replaced by my-new-tool"

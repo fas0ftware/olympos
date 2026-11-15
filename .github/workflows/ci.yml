@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pyflakes olympos tests
+      - run: python -m pytest -q
+      - name: Demo smoke test
+        run: |
+          python -m olympos status --demo || test $? -eq 3
+          python -m olympos json --demo | python -c "import json,sys; s=json.load(sys.stdin); assert s['counts']['projects'] == 6"
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install bandit
+      - name: Static analysis (bandit)
+        run: bandit -q -r olympos

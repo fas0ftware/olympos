@@ -1,0 +1,6 @@
+# Your machine's settings: paths, services, sites. Never committed.
+olympos.toml
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Olympos</title>
+  <link rel="icon" href="/static/olympos.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/base.css">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/ui.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="/static/olympos.svg" alt="" width="28" height="28">
+      <span class="brand__name">Olympos</span>
+      <span class="brand__tag">projects &amp; systems</span>
+      <span id="level" class="badge">…</span>
+    </div>
+    <div class="actions">
+      <span id="updated" class="note"></span>
+      <button id="refresh" class="btn btn--small" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <p id="error" class="error" hidden></p>
+    <section class="stats" id="stats" aria-label="Summary"></section>
+
+    <section class="panel attention">
+      <div class="panel__head">
+        <h2 class="panel__title">Needs attention</h2>
+        <label class="note"><input type="checkbox" id="show-info"> show notes</label>
+      </div>
+      <ul id="findings" class="findings"></ul>
+    </section>
+
+    <section class="panel">
+      <div class="panel__head">
+        <h2 class="panel__title">Projects</h2>
+        <div class="row filters">
+          <input type="text" id="filter" placeholder="filter" aria-label="Filter projects">
+          <select id="stage" aria-label="Stage"><option value="">all stages</option></select>
+        </div>
+      </div>
+      <div class="scroll">
+        <table class="table projects">
+          <thead><tr>
+            <th>Project</th><th>Stage</th><th>Version</th><th>Last commit</th><th>Local</th><th>GitHub</th><th>Next on the roadmap</th>
+          </tr></thead>
+          <tbody id="projects"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel"><h2 class="panel__title">Backups</h2><div id="backups"></div></div>
+      <div class="panel"><h2 class="panel__title">Network (Cerberus)</h2><div id="cerberus"></div></div>
+      <div class="panel"><h2 class="panel__title">Services</h2><div id="units"></div></div>
+      <div class="panel"><h2 class="panel__title">Disks &amp; sites</h2><div id="disks"></div><div id="sites"></div></div>
+    </section>
+  </main>
+</body>
+</html>

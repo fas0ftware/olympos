@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="164" viewBox="0 0 860 164">
+<rect width="100%" height="100%" rx="10" fill="#0d1117" stroke="#30363d"/>
+<rect width="100%" height="32" rx="10" fill="#161b22"/><rect y="22" width="100%" height="10" fill="#161b22"/>
+<circle cx="18" cy="16" r="6" fill="#ff5f56"/><circle cx="38" cy="16" r="6" fill="#ffbd2e"/><circle cx="58" cy="16" r="6" fill="#27c93f"/>
+<text x="430" y="21" fill="#8b949e" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" text-anchor="middle">olympos — static analysis</text>
+<g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13">
+<text x="14" y="56" fill="#58a6ff">$ bandit -q -r olympos</text>
+<text x="14" y="74" fill="#e6edf3">Run started</text>
+<text x="14" y="92" fill="#e6edf3">Test results:</text>
+<text x="14" y="110" fill="#3fb950">        No issues identified.</text>
+<text x="14" y="128" fill="#e6edf3">Code scanned: total lines of code: 1109 · High: 0 · Medium: 0</text>
+<text x="14" y="146" fill="#e6edf3">Every subprocess call uses a fixed argument list (git, gh, systemctl), never a shell.</text>
+</g></svg>

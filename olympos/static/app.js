@@ -1,0 +1,238 @@
+// Olympos dashboard. Everything from the server is inserted as text (el() uses textContent).
+"use strict";
+
+const LEVEL_TEXT = { ok: "all good", info: "all good", warn: "warnings", bad: "problems" };
+const LEVEL_CLASS = { ok: "good", info: "good", warn: "warn", bad: "bad" };
+let current = null;
+
+function ago(iso) {
+  if (!iso) return "never";
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (Number.isNaN(s)) return "?";
+  if (s < 90) return "just now";
+  if (s < 5400) return `${Math.round(s / 60)} min ago`;
+  if (s < 172800) return `${Math.round(s / 3600)} h ago`;
+  return `${Math.round(s / 86400)} days ago`;
+}
+
+function until(iso) {
+  if (!iso) return "";
+  const s = (new Date(iso).getTime() - Date.now()) / 1000;
+  if (s < 0) return "due";
+  if (s < 5400) return `in ${Math.round(s / 60)} min`;
+  return `in ${Math.round(s / 3600)} h`;
+}
+
+function bytes(n) {
+  const u = ["B", "KiB", "MiB", "GiB", "TiB"];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return i ? `${n.toFixed(1)} ${u[i]}` : `${n} B`;
+}
+
+const badge = (text, kind) => el("span", { class: `badge${kind ? ` badge--${kind}` : ""}` }, text);
+
+function stat(value, label, sub, cls) {
+  return el("div", { class: "stat" },
+    el("div", { class: `stat__value ${cls || ""}` }, value),
+    el("div", { class: "stat__label" }, label),
+    sub ? el("div", { class: "stat__sub" }, sub) : null);
+}
+
+function renderStats(s) {
+  const c = s.counts;
+  const goodBackups = s.backups.map((b) => (b.last_good_backup || {}).time).filter(Boolean).sort();
+  const oldest = goodBackups.length === s.backups.length && goodBackups.length ? goodBackups[0] : null;
+  const stages = Object.entries(c.stages).map(([k, v]) => `${v} ${k}`).join(" · ");
+  const cer = s.cerberus;
+  const fullest = s.disks.filter((d) => d.mounted).sort((a, b) => b.percent - a.percent)[0];
+  $("#stats").replaceChildren(
+    stat(LEVEL_TEXT[s.level], "overall", `${c.bad} problem(s), ${c.warn} warning(s)`, LEVEL_CLASS[s.level]),
+    stat(String(c.projects), "projects", stages),
+    stat(`${c.public} / ${c.private}`, "public / private", c.ci_failing ? `${c.ci_failing} CI failing` : "CI all green",
+      c.ci_failing ? "bad" : ""),
+    stat(oldest ? ago(oldest) : "none", "oldest last backup", `${s.backups.length} repositor${s.backups.length === 1 ? "y" : "ies"}`,
+      oldest ? "" : "bad"),
+    stat(cer ? `${cer.online}/${cer.hosts}` : "–", "devices online", cer ? `${cer.risky_ports} risky port(s) · ${cer.level}` : (s.cerberus_error || "")),
+    stat(fullest ? `${Math.round(fullest.percent)}%` : "–", "fullest disk", fullest ? fullest.path : ""),
+  );
+}
+
+function renderFindings(s) {
+  const showInfo = $("#show-info").checked;
+  const list = s.findings.filter((f) => showInfo || f.level !== "info");
+  const items = list.map((f) => el("li", {},
+    badge(f.level === "bad" ? "problem" : f.level === "warn" ? "warning" : "note", LEVEL_CLASS[f.level] === "good" ? "" : LEVEL_CLASS[f.level]),
+    el("span", { class: "area" }, f.area),
+    el("span", {}, el("span", { class: "subject" }, f.subject), ": ", f.text)));
+  if (!items.length) items.push(el("li", { class: "all-good" }, "Nothing needs attention."));
+  $("#findings").replaceChildren(...items);
+}
+
+function githubCell(p) {
+  const g = p.github;
+  if (!p.remote) return el("span", { class: "muted" }, "local only");
+  if (!g) return el("span", { class: "muted" }, current.github_checked ? "not found" : "checking…");
+  const ci = { SUCCESS: ["CI ✓", "good"], FAILURE: ["CI ✗", "bad"], ERROR: ["CI ✗", "bad"], PENDING: ["CI …", "warn"] }[g.ci];
+  return el("div", { class: "badges" },
+    badge(g.visibility.toLowerCase(), g.visibility === "PUBLIC" ? "accent" : ""),
+    ci ? badge(ci[0], ci[1]) : badge("no CI"),
+    g.open_prs ? badge(`${g.open_prs} PR`, "warn") : null,
+    g.archived ? badge("archived") : null);
+}
+
+function renderProjects(s) {
+  const q = $("#filter").value.trim().toLowerCase();
+  const stage = $("#stage").value;
+  const rows = s.projects
+    .filter((p) => !stage || p.stage === stage)
+    .filter((p) => !q || [p.name, p.language, p.stage, p.next_step, p.note, p.remote].join(" ").toLowerCase().includes(q))
+    .map((p) => {
+      const url = p.github && /^https:\/\/github\.com\//.test(p.github.url) ? p.github.url : null;
+      const name = el("td", { class: "name" },
+        url ? el("a", { href: url, target: "_blank", rel: "noopener noreferrer" }, p.name) : p.name,
+        el("span", { class: "lang" }, p.language || ""),
+        p.note ? el("span", { class: "note-line" }, p.note) : null);
+      const local = el("div", { class: "badges" },
+        p.dirty ? badge(`${p.dirty} changed`, "warn") : null,
+        p.ahead ? badge(`${p.ahead} unpushed`, "warn") : null,
+        p.behind ? badge(`${p.behind} behind`) : null,
+        p.branch && !["main", "master"].includes(p.branch) ? badge(p.branch) : null,
+        p.errors.length ? badge("git error", "bad") : null,
+        !p.dirty && !p.ahead && !p.errors.length ? badge("clean", "good") : null);
+      return el("tr", {},
+        name,
+        el("td", {}, p.stage ? el("span", { class: `badge stage--${p.stage}`, title: p.stage_source === "config" ? "set in olympos.toml" : "from commit activity" }, p.stage) : "–"),
+        el("td", { class: "mono" }, p.version || "–"),
+        el("td", { title: p.last_subject || "" }, ago(p.last_commit)),
+        el("td", {}, local),
+        el("td", {}, githubCell(p)),
+        el("td", { class: "next" }, p.next_step || ""));
+    });
+  for (const r of s.remote_only) {
+    rows.push(el("tr", {},
+      el("td", { class: "name" }, r.name, el("span", { class: "lang" }, "on GitHub only")),
+      el("td", {}, "–"), el("td", {}, "–"), el("td", {}, ago(r.pushed_at)),
+      el("td", {}, badge("no local copy")), el("td", {}, githubCell({ remote: `${r.owner}/${r.name}`, github: r })), el("td", {})));
+  }
+  $("#projects").replaceChildren(...rows);
+}
+
+function item(title, right, body) {
+  return el("div", { class: "item" },
+    el("div", { class: "item__head" }, el("span", { class: "item__title" }, title), right),
+    body ? el("div", { class: "item__body" }, body) : null);
+}
+
+function renderBackups(s) {
+  if (!s.backups.length) {
+    $("#backups").replaceChildren(el("p", { class: "muted" }, "No backup has run yet (Mnemosyne status file not found)."));
+    return;
+  }
+  $("#backups").replaceChildren(...s.backups.map((b) => {
+    const last = b.last_backup || {}, good = b.last_good_backup || {}, check = b.last_check || {};
+    const state = !last.time ? badge("never", "bad") : last.ok ? badge("ok", "good") : badge("failed", "bad");
+    const lines = [
+      `last good backup ${ago(good.time)}` + (good.files ? ` · ${good.files} files, ${bytes(good.bytes)}` : ""),
+      `verified ${ago(check.time)}${check.read_data ? ` (${check.read_data})` : ""}${check.time && !check.ok ? " · PROBLEMS" : ""}`,
+      `${b.snapshots} snapshots · ${bytes(b.repo_bytes)} on disk`,
+    ];
+    if (last.time && !last.ok) lines.unshift(`last attempt ${ago(last.time)}: ${last.error || "failed"}`);
+    return item(b.repo, state, lines.map((l) => el("div", {}, l)));
+  }));
+}
+
+function renderCerberus(s) {
+  const c = s.cerberus;
+  if (!c) {
+    $("#cerberus").replaceChildren(el("p", { class: "muted" }, s.cerberus_error ? `Not reachable: ${s.cerberus_error}` : "Not configured."));
+    return;
+  }
+  const lvl = { info: "good", low: "good", medium: "warn", high: "bad", critical: "bad" }[c.level] || "";
+  const rows = [["network", c.network], ["devices", `${c.online} online of ${c.hosts}`], ["untrusted", c.untrusted],
+    ["open ports", c.open_ports], ["risky ports", c.risky_ports], ["new devices (24 h)", c.new_devices_24h],
+    ["decoy touches (24 h)", c.decoy_touches_24h], ["events (24 h)", c.events_24h], ["last sweep", ago(c.last_sweep)]];
+  $("#cerberus").replaceChildren(
+    el("div", { class: "item__head" }, el("span", { class: "muted" }, `Cerberus ${c.version}`), badge(`level: ${c.level}`, lvl)),
+    el("dl", { class: "kv" }, rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, String(v ?? "–"))])));
+}
+
+function renderUnits(s) {
+  if (!s.units.length) {
+    $("#units").replaceChildren(el("p", { class: "muted" }, "No units configured."));
+    return;
+  }
+  $("#units").replaceChildren(...s.units.map((u) => {
+    const timer = u.name.endsWith(".timer");
+    let state;
+    if (u.load === "not-found") state = badge("not installed", "bad");
+    else if (u.active === "failed") state = badge("failed", "bad");
+    else if (timer && u.last_result && u.last_result !== "success") state = badge("last run failed", "bad");
+    else if (u.active === "active") state = badge(u.sub || "active", "good");
+    else state = badge(u.active || "?", "warn");
+    const body = timer
+      ? `last run ${ago(u.last_run)}${u.next_run ? ` · next ${until(u.next_run)}` : ""}${u.triggers ? ` · starts ${u.triggers}` : ""}`
+      : `${u.description}${u.last_run ? ` · since ${ago(u.last_run).replace(" ago", "")}` : ""}`;
+    return item(u.name, state, body);
+  }));
+}
+
+function renderDisksSites(s) {
+  $("#disks").replaceChildren(...s.disks.map((d) => {
+    if (!d.mounted) return item(d.path, badge("not mounted", "bad"));
+    const cls = d.percent >= 95 ? "bad" : d.percent >= 85 ? "warn" : "";
+    const bar = el("div", { class: "bar" }, el("span", { class: cls, style: null }));
+    bar.firstChild.style.width = `${Math.min(100, d.percent)}%`;
+    return item(d.path, el("span", { class: "mono" }, `${d.percent}%`), [`${bytes(d.free)} free of ${bytes(d.total)}`, bar]);
+  }));
+  $("#sites").replaceChildren(...s.sites.map((x) => {
+    const ok = !x.error && x.status >= 200 && x.status < 400;
+    return item(x.name, badge(x.error ? "down" : `HTTP ${x.status}`, ok ? "good" : "bad"), `${x.url} · ${x.ms} ms · checked ${ago(x.checked)}`);
+  }));
+}
+
+function render(s) {
+  current = s;
+  $("#error").hidden = true;
+  const lvl = $("#level");
+  lvl.textContent = LEVEL_TEXT[s.level];
+  lvl.className = `badge badge--${LEVEL_CLASS[s.level]}`;
+  document.title = `${s.level === "bad" ? "✗ " : s.level === "warn" ? "! " : ""}Olympos`;
+  $("#updated").textContent = `updated ${new Date(s.generated).toLocaleTimeString()}${s.github_checked ? ` · GitHub ${ago(s.github_checked)}` : " · GitHub: checking…"}`;
+  const stages = [...new Set(s.projects.map((p) => p.stage).filter(Boolean))].sort();
+  const sel = $("#stage"), keep = sel.value;
+  sel.replaceChildren(el("option", { value: "" }, "all stages"), ...stages.map((x) => el("option", { value: x }, x)));
+  sel.value = stages.includes(keep) ? keep : "";
+  renderStats(s);
+  renderFindings(s);
+  renderProjects(s);
+  renderBackups(s);
+  renderCerberus(s);
+  renderUnits(s);
+  renderDisksSites(s);
+}
+
+async function load(force) {
+  const btn = $("#refresh");
+  btn.disabled = true;
+  try {
+    render(force ? await api("/api/refresh", {}) : await api("/api/state"));
+    // GitHub is fetched in the background on first load: ask again shortly.
+    if (!current.github_checked) setTimeout(() => load(false), 4000);
+  } catch (err) {
+    const e = $("#error");
+    e.textContent = `Could not load: ${err.message}`;
+    e.hidden = false;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  $("#refresh").addEventListener("click", () => load(true));
+  for (const id of ["#filter", "#stage", "#show-info"]) {
+    $(id).addEventListener("input", () => current && render(current));
+  }
+  load(false);
+  setInterval(() => load(false), 60000);
+});
