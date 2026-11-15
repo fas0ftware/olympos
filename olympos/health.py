@@ -55,12 +55,17 @@ def projects(items: list[dict], repos: dict[str, dict]) -> list[Finding]:
             out.append(Finding("warn", "project", name, f"{p['ahead']} commit(s) not pushed"))
         if p.get("behind"):
             out.append(Finding("info", "project", name, f"{p['behind']} commit(s) on GitHub not pulled"))
+        if p.get("tests") and p.get("tests_behind", 0) >= 5:
+            out.append(Finding("info", "project", name,
+                               f"test image is {p['tests_behind']} commits behind the code (docs/test-results.svg)"))
         if p.get("branch") and p["branch"] not in ("main", "master", "HEAD"):
             out.append(Finding("info", "project", name, f"working on branch {p['branch']}"))
         r = repos.get((p.get("remote") or "").lower())
         if r:
             if r.get("ci") in ("FAILURE", "ERROR"):
-                out.append(Finding("bad", "github", name, "CI is failing on the default branch"))
+                jobs = r.get("failed_checks") or []
+                which = f": {', '.join(jobs[:4])}" + (" …" if len(jobs) > 4 else "") if jobs else ""
+                out.append(Finding("bad", "github", name, f"CI is failing on the default branch{which}"))
             if r.get("open_prs"):
                 out.append(Finding("info", "github", name, f"{r['open_prs']} open pull request(s)"))
         elif p.get("remote") and repos:

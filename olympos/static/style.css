@@ -66,3 +66,4 @@
   .brand__tag { display: none; }
   .top { padding: .7rem 1rem; }
 }
+.projects td.stale { color: var(--warn); }

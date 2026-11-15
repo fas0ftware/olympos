@@ -16,7 +16,8 @@ def _project(now, name, lang, version, stage, commit, **extra):
     p = {"name": name, "path": f"/home/user/projects/{name}", "language": lang, "version": version, "branch": "main",
          "dirty": 0, "ahead": 0, "behind": 0, "upstream": True, "last_commit": _iso(now, **commit),
          "last_subject": "Update README", "commits": 42, "remote": f"fas0ftware/{name}", "next_step": "",
-         "stage": stage, "stage_source": "activity", "note": "", "errors": []}
+         "stage": stage, "stage_source": "activity", "note": "", "errors": [],
+         "tests": [], "tests_updated": _iso(now, days=1), "tests_behind": 0}
     p.update(extra)
     return p
 
@@ -24,7 +25,7 @@ def _project(now, name, lang, version, stage, commit, **extra):
 def _repo(now, name, visibility="PUBLIC", ci="SUCCESS", **extra):
     r = {"owner": "fas0ftware", "name": name, "visibility": visibility, "archived": False,
          "pushed_at": _iso(now, hours=5), "url": f"https://github.com/fas0ftware/{name}", "ci": ci,
-         "open_prs": 0, "open_issues": 0}
+         "open_prs": 0, "open_issues": 0, "checks": 4 if ci else 0, "failed_checks": []}
     r.update(extra)
     return r
 
@@ -35,24 +36,25 @@ def snapshot(now: datetime | None = None) -> dict:
     # The author's own public projects (names, versions, roadmaps as on GitHub); paths, times
     # and the machine around them are made up.
     projects = [
-        _project(now, "ariadne", "TypeScript", "1.1.1", "active", {"hours": 2},
+        _project(now, "ariadne", "TypeScript", "1.1.1", "active", {"hours": 2}, tests=[42],
                  next_step="Phase 2: milestones (Category → Project → Sub-milestone, monthly/weekly/daily views)"),
-        _project(now, "daedalus", "Python", "0.2.0", "active", {"days": 1}),
-        _project(now, "janus", "C", "1.9.0", "active", {"days": 1},
-                 next_step="Integration as the scanning engine of Lynceus (via --json; Cerberus already uses it)"),
-        _project(now, "JUDA", "Python", "0.2.2", "active", {"days": 4}),
-        _project(now, "lynceus", "Python", "2.2.0", "active", {"days": 1}, next_step="Docker image"),
-        _project(now, "maze", "Python", "0.3.1", "active", {"days": 6}),
-        _project(now, "mnemosyne", "Rust", "0.1.0", "active", {"hours": 1},
+        _project(now, "daedalus", "Python", "0.2.0", "active", {"days": 1}, tests=[32]),
+        _project(now, "janus", "C", "1.9.0", "active", {"days": 1}, tests=[130],
+                 next_step="Scan profiles: named sets of ports and timing (quick, home, full)"),
+        _project(now, "JUDA", "Python", "0.2.2", "active", {"days": 4}, tests=[86]),
+        _project(now, "lynceus", "Python", "2.5.0", "active", {"days": 1}, tests=[97],
+                 next_step="Per-device history of open ports"),
+        _project(now, "maze", "Python", "0.3.1", "active", {"days": 6}, tests=[202], tests_behind=6),
+        _project(now, "mnemosyne", "Rust", "0.4.0", "active", {"hours": 1}, tests=[34, 1, 3],
                  next_step="Packs: many small chunks in one file (fewer files on slow USB sticks and network shares)."),
-        _project(now, "olympos", "Python", "0.3.0", "active", {"minutes": 20}, ahead=1, dirty=2,
-                 next_step="Tests and coverage per project, read from the CI artifacts."),
-        _project(now, "Project-Enigma", "Python", "2.0.0", "maintained", {"days": 35}),
-        _project(now, "Project_Hugnin", "Python", "3.1.0", "active", {"days": 2}),
-        _project(now, "Project_Orion", "Python", "2.1.0", "active", {"days": 2}),
-        _project(now, "Zarathustra_TTS", "Python", "2.1.0", "maintained", {"days": 20}),
-        _project(now, "pythia", "Python", "0.1.0", "active", {"hours": 3}, remote="", upstream=False,
-                 next_step="Encrypted upstream (DNS over TLS) so the provider cannot read the names."),
+        _project(now, "olympos", "Python", "0.4.0", "active", {"minutes": 20}, ahead=1, dirty=2, tests=[25],
+                 next_step="Coverage per project, once CI publishes it."),
+        _project(now, "Project-Enigma", "Python", "2.0.0", "maintained", {"days": 35}, tests=[9]),
+        _project(now, "Project_Hugnin", "Python", "3.1.0", "active", {"days": 2}, tests=[40]),
+        _project(now, "Project_Orion", "Python", "2.1.0", "active", {"days": 2}, tests=[22]),
+        _project(now, "Zarathustra_TTS", "Python", "2.1.0", "maintained", {"days": 20}, tests=[32]),
+        _project(now, "pythia", "Python", "0.3.0", "active", {"hours": 3}, tests=[32],
+                 next_step="Query log per device in the web page."),
     ]
     repos = [_repo(now, p["name"]) for p in projects if p["remote"]] + [_repo(now, "fas0ftware", ci="")]
     units = [
@@ -81,7 +83,7 @@ def snapshot(now: datetime | None = None) -> dict:
          "last_check": {"time": _iso(now, days=2), "ok": True, "bytes": 1_790_000_000, "read_data": "10%"},
          "snapshots": 58, "repo_bytes": 14_700_000_000},
     ]
-    cerberus = {"version": "0.9.0", "network": "192.0.2.0/24", "last_sweep": _iso(now, minutes=3), "hosts": 9,
+    cerberus = {"version": "0.10.1", "network": "192.0.2.0/24", "last_sweep": _iso(now, minutes=3), "hosts": 9,
                 "online": 7, "new_devices_24h": 1, "untrusted": 2, "open_ports": 14, "risky_ports": 1,
                 "decoy_touches_24h": 0, "events_24h": 12, "level": "medium"}
     disks = [{"path": "/", "mounted": True, "total": 250_000_000_000, "used": 61_000_000_000,
@@ -90,7 +92,7 @@ def snapshot(now: datetime | None = None) -> dict:
               "free": 120_000_000_000, "percent": 88.0}]
     sites = [{"name": "FA Software website", "url": "https://fas0ftware.github.io/FA_Software_web/", "status": 200, "ms": 412, "error": "",
               "checked": _iso(now, minutes=2)}]
-    pythia = {"version": "0.1.0", "listening": ["127.0.0.1:53", "192.168.1.10:53"], "at_home": True, "blocking": True,
+    pythia = {"version": "0.3.0", "listening": ["127.0.0.1:53", "192.168.1.10:53"], "at_home": True, "blocking": True,
               "paused_until": "", "domains_on_lists": 77309, "queries_24h": 18240, "blocked_24h": 3310,
               "blocked_percent_24h": 18.1, "clients": 7, "errors_24h": 2,
               "upstreams": [{"server": "1.1.1.1:53", "failures_in_a_row": 0}], "lists_updated": _iso(now, hours=6),

@@ -69,14 +69,29 @@ function renderFindings(s) {
   $("#findings").replaceChildren(...items);
 }
 
+function testsCell(p) {
+  if (!p.tests || !p.tests.length) return el("td", { class: "muted" }, "–");
+  const total = p.tests.reduce((a, b) => a + b, 0);
+  const stale = p.tests_behind >= 5;
+  const title = `${p.tests.join(" + ")} passed (docs/test-results.svg, ${ago(p.tests_updated)})`
+    + (p.tests_behind ? ` · ${p.tests_behind} commit(s) since` : "");
+  return el("td", { class: `mono${stale ? " stale" : ""}`, title }, p.tests.length > 1 ? `${total} (${p.tests.join("+")})` : String(total));
+}
+
 function githubCell(p) {
   const g = p.github;
   if (!p.remote) return el("span", { class: "muted" }, "local only");
   if (!g) return el("span", { class: "muted" }, current.github_checked ? "not found" : "checking…");
   const ci = { SUCCESS: ["CI ✓", "good"], FAILURE: ["CI ✗", "bad"], ERROR: ["CI ✗", "bad"], PENDING: ["CI …", "warn"] }[g.ci];
+  let ciTitle = "";
+  if (ci && g.checks) {
+    const failed = g.failed_checks || [];
+    ci[0] += ` ${g.checks - failed.length}/${g.checks}`;
+    ciTitle = failed.length ? `failing: ${failed.join(", ")}` : `${g.checks} CI job(s) passed`;
+  }
   return el("div", { class: "badges" },
     badge(g.visibility.toLowerCase(), g.visibility === "PUBLIC" ? "accent" : ""),
-    ci ? badge(ci[0], ci[1]) : badge("no CI"),
+    ci ? Object.assign(badge(ci[0], ci[1]), { title: ciTitle }) : badge("no CI"),
     g.open_prs ? badge(`${g.open_prs} PR`, "warn") : null,
     g.archived ? badge("archived") : null);
 }
@@ -104,6 +119,7 @@ function renderProjects(s) {
         name,
         el("td", {}, p.stage ? el("span", { class: `badge stage--${p.stage}`, title: p.stage_source === "config" ? "set in olympos.toml" : "from commit activity" }, p.stage) : "–"),
         el("td", { class: "mono" }, p.version || "–"),
+        testsCell(p),
         el("td", { title: p.last_subject || "" }, ago(p.last_commit)),
         el("td", {}, local),
         el("td", {}, githubCell(p)),
@@ -112,7 +128,7 @@ function renderProjects(s) {
   for (const r of s.remote_only) {
     rows.push(el("tr", {},
       el("td", { class: "name" }, r.name, el("span", { class: "lang" }, "on GitHub only")),
-      el("td", {}, "–"), el("td", {}, "–"), el("td", {}, ago(r.pushed_at)),
+      el("td", {}, "–"), el("td", {}, "–"), el("td", {}, "–"), el("td", {}, ago(r.pushed_at)),
       el("td", {}, badge("no local copy")), el("td", {}, githubCell({ remote: `${r.owner}/${r.name}`, github: r })), el("td", {})));
   }
   $("#projects").replaceChildren(...rows);

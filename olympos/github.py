@@ -6,7 +6,7 @@ import json
 import re
 import shutil
 import subprocess  # nosec B404
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 QUERY = """
 query($owner: String!) {
@@ -14,7 +14,10 @@ query($owner: String!) {
     repositories(first: 100, ownerAffiliations: OWNER, orderBy: {field: PUSHED_AT, direction: DESC}) {
       nodes {
         name visibility isArchived pushedAt url
-        defaultBranchRef { name target { ... on Commit { statusCheckRollup { state } } } }
+        defaultBranchRef { name target { ... on Commit { statusCheckRollup { state
+          contexts(first: 50) { nodes { __typename
+            ... on CheckRun { name conclusion status }
+            ... on StatusContext { context state } } } } } } }
         pullRequests(states: OPEN) { totalCount }
         issues(states: OPEN) { totalCount }
       }
@@ -35,6 +38,8 @@ class Repo:
     ci: str = ""               # SUCCESS / FAILURE / ERROR / PENDING / EXPECTED / "" (no checks)
     open_prs: int = 0
     open_issues: int = 0
+    checks: int = 0                                   # jobs in the latest run on the default branch
+    failed_checks: list = field(default_factory=list)  # names of the ones that failed
 
     @property
     def full(self) -> str:
@@ -52,11 +57,20 @@ def parse(owner: str, data: dict) -> list[Repo]:
             continue
         target = ((n.get("defaultBranchRef") or {}).get("target") or {})
         rollup = target.get("statusCheckRollup") or {}
+        nodes_ = ((rollup.get("contexts") or {}).get("nodes") or [])
+        failed = []
+        for c in nodes_:
+            if not isinstance(c, dict):
+                continue
+            state = c.get("conclusion") or c.get("state") or ""
+            if state in ("FAILURE", "ERROR", "TIMED_OUT", "STARTUP_FAILURE", "ACTION_REQUIRED"):
+                failed.append(str(c.get("name") or c.get("context") or "?")[:80])
         out.append(Repo(
             owner=owner, name=str(n["name"]), visibility=str(n.get("visibility") or ""),
             archived=bool(n.get("isArchived")), pushed_at=str(n.get("pushedAt") or ""), url=str(n.get("url") or ""),
             ci=str(rollup.get("state") or ""), open_prs=int((n.get("pullRequests") or {}).get("totalCount") or 0),
             open_issues=int((n.get("issues") or {}).get("totalCount") or 0),
+            checks=sum(1 for c in nodes_ if isinstance(c, dict)), failed_checks=sorted(set(failed)),
         ))
     return out
 

@@ -1,7 +1,7 @@
 # Olympos
 
 [![CI](https://github.com/fas0ftware/olympos/actions/workflows/ci.yml/badge.svg)](https://github.com/fas0ftware/olympos/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-0.3.0-blue)
+![Version](https://img.shields.io/badge/version-0.4.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -41,9 +41,9 @@ versions and roadmaps, on a made-up machine (paths, times, backups and network a
 
 | Area | Source | Details |
 |---|---|---|
-| **Projects** | every git repository under the configured folders (two levels deep) | language, version (`Cargo.toml`, `pyproject.toml`, `package.json`, `__version__`, or the README version badge), branch, uncommitted files, unpushed / unpulled commits, last commit, the first open item of the README's *Roadmap*, and a stage |
+| **Projects** | every git repository under the configured folders (two levels deep) | language, version (`Cargo.toml`, `pyproject.toml`, `package.json`, `__version__`, or the README version badge), branch, uncommitted files, unpushed / unpulled commits, last commit, the first open item of the README's *Roadmap*, the number of passed tests (from the project's `docs/test-results.svg` terminal image, with a note when the code has moved on since it was made), and a stage |
 | **Stage** | commit activity, or your own label | *active* (commit in the last 14 days), *maintained* (90 days), *paused*; *archived* when archived on GitHub; or set `idea / active / maintained / paused / archived` yourself |
-| **GitHub** | one GraphQL query per owner through the logged-in `gh` CLI | public / private, CI result on the default branch, open pull requests, archived; repositories with no local copy are listed too |
+| **GitHub** | one GraphQL query per owner through the logged-in `gh` CLI | public / private, CI result on the default branch with how many of its jobs passed and the names of the failing ones, open pull requests, archived; repositories with no local copy are listed too |
 | **Backups** | [Mnemosyne](https://github.com/fas0ftware/mnemosyne)'s status file | last attempt, last *good* backup, last verification, snapshots, size |
 | **Services** | `systemctl --user show` | for a timer also the result of the job it last started (a timer can be "active" while every backup fails) |
 | **Network** | a local [Cerberus](https://github.com/fas0ftware) dashboard (`/api/summary`) | devices online, risky ports, decoy touches, alert level |
@@ -162,9 +162,9 @@ note = "replaced by my-new-tool"
 
 | Level | Examples |
 |---|---|
-| **problem** | CI failing; a backup failed, is older than `max_age_hours` or never succeeded; a verification found damage; a service failed or is not installed; the last job a timer started failed; a disk is not mounted or 95 % full; a website is down; decoy touches or high alerts in Cerberus |
+| **problem** | CI failing (with the failing job names); a backup failed, is older than `max_age_hours` or never succeeded; a verification found damage; a service failed or is not installed; the last job a timer started failed; a disk is not mounted or 95 % full; a website is down; decoy touches or high alerts in Cerberus |
 | **warning** | unpushed commits; a timer that is not running; data not verified for `check_max_age_days`; a disk over `warn_percent`; risky ports on the network; Cerberus not reachable; a git or GitHub error |
-| **note** (hidden unless *show notes*) | uncommitted files, a feature branch, open pull requests, commits to pull, a project with no GitHub repository yet, new devices on the network, Pythia away from home |
+| **note** (hidden unless *show notes*) | uncommitted files, a feature branch, open pull requests, commits to pull, a project with no GitHub repository yet, new devices on the network, Pythia away from home, a test image 5 or more code commits older than the code |
 
 ## Security and privacy
 
@@ -219,7 +219,11 @@ olympos/
 - ~~History: keep a small daily record and draw how backups, CI and disks did over weeks.~~ Done in 0.2.
 - ~~Desktop notification when the overall level gets worse.~~ Done in 0.2.
 - ~~Weekly summary (what got better, what is still open).~~ Done in 0.3.
-- Tests and coverage per project, read from the CI artifacts.
+- ~~Tests per project and the failing CI jobs by name.~~ Done in 0.4: the count is read from each
+  project's test image, because downloading CI logs needs a token per run and the image is already
+  in the repository.
+- Coverage per project. None of the projects publishes a coverage number yet; this waits until
+  their CI does (for example a `coverage.json` artifact).
 
 ## License
 

@@ -119,6 +119,39 @@ def test_github_remote_and_stage():
     assert projects.stage_from_activity(iso(days=300), NOW) == "paused"
 
 
+def svg(*lines):
+    """A terminal image like the ones in the projects' docs/ (spaces as NBSP)."""
+    return "<svg>" + "".join(f'<text x="0">{l.replace(" ", "\u00a0")}</text>' for l in lines) + "</svg>"
+
+
+def test_test_counts_from_terminal_images():
+    assert projects.test_counts(svg("$ pytest -q", "....", "196 passed in 3.1s")) == [196]
+    assert projects.test_counts(svg("Test Suites: 5 passed, 5 total", "Tests:       42 passed, 42 total")) == [42]
+    assert projects.test_counts(svg("Ran 86 tests in 0.4s", "OK")) == [86]
+    assert projects.test_counts(svg("test result: ok. 34 passed; 0 failed", "test result: ok. 0 passed; 0 failed",
+                                    "test result: ok. 3 passed; 0 failed")) == [34, 3]
+    assert projects.test_counts(svg("12 passed, 4 subtests passed")) == [12]
+    assert projects.test_counts("<svg><text>no tests here</text></svg>") == []
+
+
+def test_inspect_reads_test_image_and_staleness(tmp_path):
+    r = make_repo(tmp_path / "tool", {"pyproject.toml": '[project]\nname="t"\nversion="1.0.0"\n',
+                                      "docs/test-results.svg": svg("23 passed in 1.0s")})
+    for i in range(3):
+        (r / f"code{i}.py").write_text("x")
+        git(r, "add", "-A")
+        git(r, "commit", "-q", "-m", f"code {i}")
+    (r / "docs" / "notes.md").write_text("docs only")
+    git(r, "add", "-A")
+    git(r, "commit", "-q", "-m", "docs")
+    p = projects.inspect(r, {})
+    assert p.tests == [23] and p.tests_updated
+    assert p.tests_behind == 3, "commits that only touch docs/ do not count"
+    f = health.projects([{**p.__dict__, "tests_behind": 5}], {})
+    assert any("test image is 5 commits behind" in x.text for x in f)
+    assert not any("test image" in x.text for x in health.projects([p.__dict__], {}))
+
+
 # --- github -----------------------------------------------------------------------------
 
 def test_github_parse():
@@ -129,8 +162,14 @@ def test_github_parse():
         {"name": "b", "visibility": "PRIVATE", "defaultBranchRef": None, "pullRequests": None},
         "junk", {"visibility": "PUBLIC"},
     ]}}}}
+    data["data"]["repositoryOwner"]["repositories"]["nodes"][0]["defaultBranchRef"]["target"]["statusCheckRollup"]["contexts"] = {
+        "nodes": [{"__typename": "CheckRun", "name": "test (3.12)", "conclusion": "FAILURE", "status": "COMPLETED"},
+                  {"__typename": "CheckRun", "name": "lint", "conclusion": "SUCCESS", "status": "COMPLETED"},
+                  {"__typename": "StatusContext", "context": "ci/legacy", "state": "ERROR"}, "junk"]}
     repos = github.parse("me", data)
     assert [(r.name, r.ci, r.open_prs) for r in repos] == [("a", "FAILURE", 2), ("b", "", 0)]
+    assert (repos[0].checks, repos[0].failed_checks) == (3, ["ci/legacy", "test (3.12)"])
+    assert (repos[1].checks, repos[1].failed_checks) == (0, [])
     assert repos[0].full == "me/a"
     assert github.parse("me", {"errors": ["x"]}) == []
 
@@ -201,6 +240,8 @@ def test_project_health_and_worst():
     f = health.projects(items, repos)
     levels = {(x.subject, x.level, x.text) for x in f}
     assert ("a", "bad", "CI is failing on the default branch") in levels
+    named = health.projects(items[:1], {"me/a": {"ci": "FAILURE", "failed_checks": ["test", "lint"]}})
+    assert named[-1].text == "CI is failing on the default branch: test, lint"
     assert ("a", "warn", "1 commit(s) not pushed") in levels
     assert ("b", "info", "no GitHub repository yet") in levels
     assert health.worst(f) == "bad" and health.worst([]) == "ok"
@@ -214,7 +255,8 @@ def test_demo_snapshot_is_consistent():
     texts = {(f["subject"], f["level"]) for f in s["findings"]}
     assert ("olympos", "warn") in texts and ("/media/backup-disk/Mnemosyne", "bad") in texts
     pythia = next(p for p in s["projects"] if p["name"] == "pythia")
-    assert pythia["github"] is None and s["pythia"]["blocking"] is True
+    assert pythia["github"]["checks"] == 4 and pythia["tests"] == [32] and s["pythia"]["blocking"] is True
+    assert ("maze", "info") in texts, "the demo shows a stale test image"
     json.dumps(s)
 
 

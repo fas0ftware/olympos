@@ -39,6 +39,9 @@ class Project:
     commits: int = 0
     remote: str = ""              # "owner/name" on GitHub, if any
     next_step: str = ""           # first open item of the README roadmap
+    tests: list[int] = field(default_factory=list)   # passed tests per runner, from docs/test-results.svg
+    tests_updated: str = ""       # when that image last changed (ISO)
+    tests_behind: int = 0         # commits outside docs/ since then: the image may be out of date
     stage: str = ""
     stage_source: str = ""        # "config" or "activity"
     note: str = ""
@@ -141,6 +144,23 @@ def detect_version(path: Path) -> str:
     return str(v) if isinstance(v, str) else ""
 
 
+TEST_IMAGE = "docs/test-results.svg"
+JEST = re.compile(r"Tests:\s+(\d+) passed")
+PASSED = re.compile(r"(?<!Suites: )(?<!subtests )\b(\d+) passed")
+UNITTEST = re.compile(r"\bRan (\d+) tests?\b")
+
+
+def test_counts(svg_text: str) -> list[int]:
+    """Passed tests per runner in a terminal image: pytest/cargo ("12 passed"), Jest
+    ("Tests: 42 passed", not the suite count) and unittest ("Ran 86 tests")."""
+    text = re.sub(r"<[^>]+>", "\n", svg_text).replace("\u00a0", " ")
+    jest = [int(n) for n in JEST.findall(text)]
+    if jest:
+        return jest
+    counts = [int(n) for n in PASSED.findall(text)] + [int(n) for n in UNITTEST.findall(text)]
+    return [n for n in counts if n > 0]
+
+
 ROADMAP = re.compile(r"^#{2,3}\s+(roadmap|yol haritası|next steps?|todo)\b.*$", re.I | re.M)
 DONE = re.compile(r"\bdone\b|✅|\(shipped\)", re.I)
 ITEM = re.compile(r"^\s*(?:[-*]|\d+\.)\s+(?:\[( |x|X)\]\s+)?(.+)$")
@@ -208,6 +228,16 @@ def inspect(path: Path, notes: dict, now: datetime | None = None) -> Project:
         p.remote = github_remote(git(path, "remote", "get-url", "origin"))
     except (RuntimeError, subprocess.TimeoutExpired):
         pass
+    image = path / TEST_IMAGE
+    if image.exists():
+        try:
+            p.tests = test_counts(image.read_text(encoding="utf-8", errors="replace")[:500_000])
+            p.tests_updated = git(path, "log", "-1", "--format=%cI", "--", TEST_IMAGE).strip()
+            last = git(path, "log", "-1", "--format=%H", "--", TEST_IMAGE).strip()
+            if last:
+                p.tests_behind = int(git(path, "rev-list", "--count", f"{last}..HEAD", "--", ".", ":(exclude)docs").strip() or 0)
+        except (RuntimeError, subprocess.TimeoutExpired, ValueError, OSError):
+            pass
     readme = path / "README.md"
     if readme.exists():
         p.next_step = next_step(readme.read_text(errors="replace"))
