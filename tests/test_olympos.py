@@ -224,7 +224,14 @@ def test_state_collects_with_fakes(tmp_path):
     calls = []
     st = state.State(settings, fetch_github=lambda owner: calls.append(owner) or [],
                      check_site=lambda n, u: systems.SiteCheck(n, u, status=503), show_units=fake_show)
-    snap = st.snapshot(wait_remote=True)
+    # Right after boot time.monotonic() is small: the first fetch must still happen.
+    import olympos.state as state_mod
+    real = state_mod.time.monotonic
+    state_mod.time.monotonic = lambda: 5.0
+    try:
+        snap = st.snapshot(wait_remote=True)
+    finally:
+        state_mod.time.monotonic = real
     assert snap["projects"][0]["version"] == "1.0.0" and calls == []   # no GitHub remotes, nobody asked
     subjects = {(f["subject"], f["level"]) for f in snap["findings"]}
     assert ("w", "bad") in subjects and ("x.timer", "bad") in subjects

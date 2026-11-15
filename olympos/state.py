@@ -31,7 +31,7 @@ class State:
         self._local: dict | None = None
         self._local_at = 0.0
         self._remote: dict = {"repos": [], "sites": [], "errors": [], "at": ""}
-        self._remote_at = 0.0
+        self._remote_at: float | None = None   # never fetched (not 0.0: monotonic time starts at boot)
         self._remote_running = False
 
     # --- remote (GitHub, sites) ------------------------------------------------------------
@@ -54,7 +54,7 @@ class State:
 
     def _maybe_refresh_remote(self, owners: list[str], force: bool, wait: bool) -> None:
         with self._remote_lock:
-            stale = force or time.monotonic() - self._remote_at > self.s.github_cache_seconds
+            stale = force or self._remote_at is None or time.monotonic() - self._remote_at > self.s.github_cache_seconds
             if not stale or self._remote_running:
                 return
             self._remote_running = True
