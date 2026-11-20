@@ -44,6 +44,7 @@ def sample(snap: dict, now: datetime | None = None) -> dict:
     mounted = [d["percent"] for d in snap["disks"] if d.get("mounted")]
     cer = snap.get("cerberus") or {}
     py = snap.get("pythia") or {}
+    ae = snap.get("aegis") or {}
     return {
         "t": now.isoformat(timespec="seconds"),
         "level": snap["level"],
@@ -60,6 +61,7 @@ def sample(snap: dict, now: datetime | None = None) -> dict:
         "cerberus_risky": cer.get("risky_ports"),
         "pythia_queries_24h": py.get("queries_24h"),
         "pythia_blocked_24h": py.get("blocked_24h"),
+        "aegis_score": ae.get("score"),
     }
 
 

@@ -176,6 +176,30 @@ def pythia(status_file: Path) -> dict | None:
     return out
 
 
+# --- Aegis ---------------------------------------------------------------------------------
+
+def aegis(status_file: Path) -> dict | None:
+    """Aegis's last saved audit: the score and the checks that did not pass (no fixes, no
+    details: those can hold paths and package names). None when no audit was saved yet."""
+    try:
+        data = json.loads(status_file.read_text())
+        age = time.time() - status_file.stat().st_mtime
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"{status_file}: {exc}") from None
+    if not isinstance(data, dict):
+        raise RuntimeError(f"{status_file}: not an Aegis status file")
+    open_checks = []
+    for c in data.get("checks") or []:
+        if isinstance(c, dict) and c.get("status") in ("fail", "warn"):
+            open_checks.append({k: str(c.get(k) or "") for k in ("id", "title", "severity", "status", "summary")})
+    score = data.get("score")
+    return {"version": data.get("version"), "time": data.get("time"),
+            "score": score if isinstance(score, int) else None, "verdict": data.get("verdict"),
+            "counts": data.get("counts") or {}, "open": open_checks, "age_s": int(age)}
+
+
 # --- disks ---------------------------------------------------------------------------------
 
 @dataclass

@@ -161,6 +161,26 @@ def pythia(status: dict | None, configured: bool) -> list[Finding]:
     return out
 
 
+def aegis(status: dict | None, configured: bool, max_age_days: float) -> list[Finding]:
+    if not configured:
+        return []
+    if status is None:
+        return [Finding("warn", "security", "Aegis", "no audit saved yet (python -m aegis --save)")]
+    out = []
+    if status.get("age_s", 0) > max_age_days * 86400:
+        out.append(Finding("warn", "security", "Aegis", f"last audit is {human_age(status['age_s'] / 3600)} old"))
+    warns = 0
+    for c in status.get("open") or []:
+        if c.get("status") == "fail":
+            level = "bad" if c.get("severity") == "high" else "warn"
+            out.append(Finding(level, "security", c.get("title") or c.get("id") or "?", c.get("summary") or "failed"))
+        else:
+            warns += 1
+    if warns:
+        out.append(Finding("info", "security", "Aegis", f"{warns} check(s) with a warning (score {status.get('score')})"))
+    return out
+
+
 def disks(items: list[dict], warn_percent: int) -> list[Finding]:
     out = []
     for d in items:

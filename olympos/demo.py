@@ -97,8 +97,19 @@ def snapshot(now: datetime | None = None) -> dict:
               "blocked_percent_24h": 18.1, "clients": 7, "errors_24h": 2,
               "upstreams": [{"server": "1.1.1.1:53", "failures_in_a_row": 0}], "lists_updated": _iso(now, hours=6),
               "age_s": 12}
+    aegis = {"version": "0.1.0", "time": _iso(now, hours=7), "score": 74, "verdict": "fair",
+             "counts": {"pass": 12, "warn": 3, "fail": 1, "info": 0, "unknown": 1},  # nosec B105
+             "age_s": 7 * 3600,
+             "open": [{"id": "disk-encryption", "title": "Disk encryption", "severity": "high", "status": "fail",
+                       "summary": "files are stored unencrypted: /"},
+                      {"id": "reboot", "title": "Restart after updates", "severity": "medium", "status": "warn",
+                       "summary": "a restart is pending for 1 package(s)"},
+                      {"id": "kernel", "title": "Kernel hardening", "severity": "medium", "status": "warn",
+                       "summary": "1 of 13 switches are off: net.ipv6.conf.all.accept_redirects"},
+                      {"id": "secure-boot", "title": "Secure Boot", "severity": "low", "status": "warn",
+                       "summary": "Secure Boot is off"}]}
     local = {"projects": projects, "units": units, "backups": backups, "cerberus": cerberus, "cerberus_error": None,
-             "pythia": pythia, "pythia_configured": True,
+             "pythia": pythia, "pythia_configured": True, "aegis": aegis, "aegis_configured": True,
              "disks": disks, "errors": []}
     remote = {"repos": repos, "sites": sites, "errors": [], "at": _iso(now, minutes=2)}
     return build(s, local, remote, now)
@@ -126,6 +137,7 @@ def history(days: float = 7, now: datetime | None = None) -> list[dict]:
             "disk_max_percent": round(84 + 4 * (steps - i) / steps, 1),
             "cerberus_online": 6 + int(evening * 3), "cerberus_risky": 1,
             "pythia_queries_24h": int(15000 + 3000 * evening), "pythia_blocked_24h": int(2600 + 900 * evening),
+            "aegis_score": 61 if i / 4 > 72 else 74,     # the firewall was switched on three days ago
         })
     return out
 

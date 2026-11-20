@@ -32,6 +32,7 @@ def build(rows: list[dict], snap: dict, days: float = 7, now: datetime | None = 
     never = any(r.get("backup_age_h") is None for r in rows if "backup_age_h" in r)
     disk = _nums(rows, "disk_max_percent")
     blocked = _nums(rows, "pythia_blocked_24h")
+    aegis = _nums(rows, "aegis_score")
     open_now = [f for f in snap.get("findings", []) if f["level"] in ("bad", "warn")]
     out = {
         "from": (now - timedelta(days=days)).isoformat(timespec="seconds"),
@@ -47,6 +48,8 @@ def build(rows: list[dict], snap: dict, days: float = 7, now: datetime | None = 
         "backup_never_succeeded": never and not ages,
         "disk_start": disk[0] if disk else None,
         "disk_end": disk[-1] if disk else None,
+        "aegis_start": aegis[0] if aegis else None,
+        "aegis_end": aegis[-1] if aegis else None,
         "pythia_blocked_per_day": round(sum(blocked) / len(blocked)) if blocked else None,
         "still_open": [{"level": f["level"], "subject": f["subject"], "text": f["text"]} for f in open_now],
         "level_now": snap.get("level", "ok"),
@@ -82,6 +85,8 @@ def text(s: dict) -> str:
         lines.append(f"Backups: the longest gap reached {s['worst_backup_age_h']:.1f} h.")
     if s["disk_start"] is not None:
         lines.append(f"Fullest disk: {s['disk_start']:g}% → {s['disk_end']:g}%.")
+    if s.get("aegis_start") is not None:
+        lines.append(f"Laptop security (Aegis): {s['aegis_start']:g} → {s['aegis_end']:g} of 100.")
     if s["pythia_blocked_per_day"] is not None:
         lines.append(f"DNS filter: about {s['pythia_blocked_per_day']:,} blocked per day.")
     if s["still_open"]:

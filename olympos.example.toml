@@ -22,6 +22,12 @@ check_max_age_days = 3     # data should be re-verified at least this often
 # Pythia's status file (written every 30 s); remove this section if you do not run Pythia.
 # status_file = "~/.local/state/pythia/status.json"
 
+[aegis]
+# Aegis's last saved audit (python -m aegis --save, or its daily timer); remove this
+# section if you do not run Aegis. A warning when the audit is older than max_age_days.
+# status_file = "~/.local/state/aegis/status.json"
+# max_age_days = 2
+
 [disks]
 paths = ["/"]
 warn_percent = 85

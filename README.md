@@ -48,6 +48,7 @@ versions and roadmaps, on a made-up machine (paths, times, backups and network a
 | **Services** | `systemctl --user show` | for a timer also the result of the job it last started (a timer can be "active" while every backup fails) |
 | **Network** | a local [Cerberus](https://github.com/fas0ftware) dashboard (`/api/summary`) | devices online, risky ports, decoy touches, alert level |
 | **DNS filter** | [Pythia](https://github.com/fas0ftware/pythia)'s status file | blocking or paused, queries and blocks in 24 h, upstream health; "stopped" when the file is more than 3 minutes old |
+| **Laptop security** | Aegis's status file (`python -m aegis --save`) | score, and the checks that fail or warn; a failing *high* check (firewall off, disk not encrypted, security updates waiting) is a problem, other failures are warnings; a warning when the last audit is more than 2 days old. Only titles and one-line summaries are read, never Aegis's details or fix commands |
 | **Disks** | `statvfs` | free space, or "not mounted" for an unplugged backup disk |
 | **Websites** | an HTTP `HEAD` | status code and response time |
 
@@ -162,9 +163,9 @@ note = "replaced by my-new-tool"
 
 | Level | Examples |
 |---|---|
-| **problem** | CI failing (with the failing job names); a backup failed, is older than `max_age_hours` or never succeeded; a verification found damage; a service failed or is not installed; the last job a timer started failed; a disk is not mounted or 95 % full; a website is down; decoy touches or high alerts in Cerberus |
-| **warning** | unpushed commits; a timer that is not running; data not verified for `check_max_age_days`; a disk over `warn_percent`; risky ports on the network; Cerberus not reachable; a git or GitHub error |
-| **note** (hidden unless *show notes*) | uncommitted files, a feature branch, open pull requests, commits to pull, a project with no GitHub repository yet, new devices on the network, Pythia away from home, a test image 5 or more code commits older than the code |
+| **problem** | CI failing (with the failing job names); a backup failed, is older than `max_age_hours` or never succeeded; a verification found damage; a service failed or is not installed; the last job a timer started failed; a disk is not mounted or 95 % full; a website is down; decoy touches or high alerts in Cerberus; a failing *high* Aegis check |
+| **warning** | unpushed commits; a timer that is not running; data not verified for `check_max_age_days`; a disk over `warn_percent`; risky ports on the network; Cerberus not reachable; another failing Aegis check or an Aegis audit older than `max_age_days`; a git or GitHub error |
+| **note** (hidden unless *show notes*) | uncommitted files, a feature branch, open pull requests, commits to pull, a project with no GitHub repository yet, new devices on the network, Pythia away from home, Aegis checks with a warning, a test image 5 or more code commits older than the code |
 
 ## Security and privacy
 
@@ -206,7 +207,7 @@ olympos/
   config.py     olympos.toml
   projects.py   local git repositories: version, language, state, roadmap, stage
   github.py     one GraphQL query per owner via gh
-  systems.py    systemd units, Mnemosyne status, Cerberus, disks, websites
+  systems.py    systemd units, Mnemosyne, Cerberus, Pythia, Aegis, disks, websites
   health.py     findings and the overall level
   state.py      caching; GitHub and sites refreshed in the background
   demo.py       fictional data for screenshots
@@ -222,6 +223,7 @@ olympos/
 - ~~Tests per project and the failing CI jobs by name.~~ Done in 0.4: the count is read from each
   project's test image, because downloading CI logs needs a token per run and the image is already
   in the repository.
+- ~~Laptop security from Aegis.~~ Done in 0.5: score, failing checks as findings, score in the history.
 - Coverage per project. None of the projects publishes a coverage number yet; this waits until
   their CI does (for example a `coverage.json` artifact).
 

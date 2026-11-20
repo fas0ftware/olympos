@@ -192,6 +192,23 @@ function renderPythia(s) {
     el("dl", { class: "kv" }, rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, String(v ?? "–"))])));
 }
 
+function renderAegis(s) {
+  $("#aegis-panel").hidden = !s.aegis_configured;
+  if (!s.aegis_configured) return;
+  const a = s.aegis;
+  if (!a) {
+    $("#aegis").replaceChildren(el("p", { class: "muted" }, "No audit saved yet: run python -m aegis --save."));
+    return;
+  }
+  const cls = a.score == null ? "warn" : a.score >= 85 ? "good" : a.score >= 60 ? "warn" : "bad";
+  const n = a.counts || {};
+  const head = el("div", { class: "item__head" }, el("span", { class: "muted" }, `Aegis ${a.version} · ${ago(a.time)}`),
+    badge(a.score == null ? "no score" : `${a.score}/100 ${a.verdict || ""}`.trim(), cls));
+  const tally = el("p", { class: "muted" }, `${n.pass ?? 0} pass · ${n.warn ?? 0} warn · ${n.fail ?? 0} fail · ${n.unknown ?? 0} unknown`);
+  const open = (a.open || []).map((c) => item(c.title, badge(c.status, c.status === "fail" ? "bad" : "warn"), `${c.severity} · ${c.summary}`));
+  $("#aegis").replaceChildren(head, tally, ...open);
+}
+
 function renderUnits(s) {
   if (!s.units.length) {
     $("#units").replaceChildren(el("p", { class: "muted" }, "No units configured."));
@@ -231,6 +248,7 @@ const SERIES = [
   ["backup_age_h", "oldest last backup (h)", (v) => (v == null ? "never" : v.toFixed(1)), null],
   ["disk_max_percent", "fullest disk (%)", (v) => (v == null ? "–" : `${v}%`), null],
   ["pythia_blocked_24h", "DNS blocked (24 h)", (v) => (v == null ? "–" : String(v)), null],
+  ["aegis_score", "laptop security score", (v) => (v == null ? "–" : `${v}/100`), null],
   ["cerberus_online", "devices online", (v) => (v == null ? "–" : String(v)), null],
   ["unpushed", "projects with unpushed work", (v) => String(v), null],
 ];
@@ -284,6 +302,7 @@ function render(s) {
   renderBackups(s);
   renderCerberus(s);
   renderPythia(s);
+  renderAegis(s);
   renderUnits(s);
   renderDisksSites(s);
 }

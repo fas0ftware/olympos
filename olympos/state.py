@@ -90,8 +90,15 @@ class State:
                 pythia = systems.pythia(self.s.pythia_status)
             except RuntimeError as exc:
                 errors.append(f"Pythia: {exc}")
+        aegis = None
+        if self.s.aegis_status:
+            try:
+                aegis = systems.aegis(self.s.aegis_status)
+            except RuntimeError as exc:
+                errors.append(f"Aegis: {exc}")
         return {"projects": items, "units": units, "backups": backups, "cerberus": cerberus, "pythia": pythia,
                 "pythia_configured": bool(self.s.pythia_status),
+                "aegis": aegis, "aegis_configured": bool(self.s.aegis_status),
                 "cerberus_error": cerberus_error, "disks": [d.to_dict() for d in systems.disks(self.s.disks)],
                 "errors": errors}
 
@@ -125,6 +132,7 @@ def build(s: Settings, local: dict, remote: dict, now: datetime | None = None) -
         + health.backups(local["backups"], s.backup_max_age_hours, s.check_max_age_days, now, expects_backups)
         + health.cerberus(local["cerberus"], local["cerberus_error"])
         + health.pythia(local.get("pythia"), local.get("pythia_configured", False))
+        + health.aegis(local.get("aegis"), local.get("aegis_configured", False), s.aegis_max_age_days)
         + health.disks(local["disks"], s.disk_warn_percent)
         + health.sites(remote["sites"])
         + [health.Finding("warn", "olympos", "collector", e) for e in local["errors"] + remote["errors"]]
@@ -157,6 +165,8 @@ def build(s: Settings, local: dict, remote: dict, now: datetime | None = None) -
         "cerberus_error": local["cerberus_error"],
         "pythia": local.get("pythia"),
         "pythia_configured": local.get("pythia_configured", False),
+        "aegis": local.get("aegis"),
+        "aegis_configured": local.get("aegis_configured", False),
         "disks": local["disks"],
         "sites": remote["sites"],
     }

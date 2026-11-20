@@ -36,6 +36,8 @@ class Settings:
     check_max_age_days: float = 3.0
     cerberus_url: str = ""
     pythia_status: Path | None = None   # Pythia's status file; None = not watched
+    aegis_status: Path | None = None    # Aegis's status file; None = not watched
+    aegis_max_age_days: float = 2.0
     disks: list[Path] = field(default_factory=list)
     disk_warn_percent: int = 85
     sites: list[Site] = field(default_factory=list)
@@ -90,6 +92,10 @@ def parse(raw: dict) -> Settings:
     py = raw.get("pythia", {})
     if py:
         s.pythia_status = Path(py.get("status_file", "~/.local/state/pythia/status.json")).expanduser()
+    ae = raw.get("aegis", {})
+    if ae:
+        s.aegis_status = Path(ae.get("status_file", "~/.local/state/aegis/status.json")).expanduser()
+        s.aegis_max_age_days = float(ae.get("max_age_days", s.aegis_max_age_days))
     d = raw.get("disks", {})
     s.disks = [Path(p).expanduser() for p in _list(d, "paths")]
     s.disk_warn_percent = int(d.get("warn_percent", s.disk_warn_percent))

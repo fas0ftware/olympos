@@ -338,6 +338,36 @@ def test_pythia_status_and_rules(tmp_path):
     assert config.parse({"pythia": {"status_file": "/x/s.json"}}).pythia_status == Path("/x/s.json")
 
 
+def test_aegis_status_and_rules(tmp_path):
+    assert health.aegis(None, False, 2) == []
+    assert health.aegis(None, True, 2)[0].text.startswith("no audit saved yet")
+    f = tmp_path / "status.json"
+    f.write_text(json.dumps({"version": "0.1.0", "time": "2026-11-20T08:00:00Z", "score": 66, "verdict": "fair",
+                             "counts": {"pass": 10, "warn": 1, "fail": 2},
+                             "checks": [
+                                 {"id": "firewall", "title": "Firewall", "severity": "high", "status": "fail",
+                                  "summary": "ufw is switched off", "details": ["/etc/ufw/ufw.conf"], "fix": "sudo ufw enable"},
+                                 {"id": "path", "title": "Safe PATH", "severity": "medium", "status": "fail", "summary": "x"},
+                                 {"id": "kernel", "title": "Kernel hardening", "severity": "medium", "status": "warn", "summary": "y"},
+                                 {"id": "mac", "title": "AppArmor", "severity": "medium", "status": "pass", "summary": "ok"},
+                                 "junk"]}))
+    st = systems.aegis(f)
+    assert st["score"] == 66 and st["age_s"] < 5 and [c["id"] for c in st["open"]] == ["firewall", "path", "kernel"]
+    assert "details" not in st["open"][0] and "fix" not in st["open"][0], "no paths or commands leave the status file"
+    got = {(x.level, x.subject, x.text) for x in health.aegis(st, True, 2)}
+    assert got == {("bad", "Firewall", "ufw is switched off"), ("warn", "Safe PATH", "x"),
+                   ("info", "Aegis", "1 check(s) with a warning (score 66)")}
+    old = health.aegis({**st, "open": [], "age_s": 5 * 86400}, True, 2)
+    assert [(x.level, x.text) for x in old] == [("warn", "last audit is 5 days old")]
+    assert systems.aegis(tmp_path / "missing.json") is None
+    f.write_text("[1, 2]")
+    with pytest.raises(RuntimeError):
+        systems.aegis(f)
+    assert config.parse({}).aegis_status is None
+    s = config.parse({"aegis": {"max_age_days": 7}})
+    assert s.aegis_status.name == "status.json" and s.aegis_max_age_days == 7.0
+
+
 def test_github_owner_is_validated(monkeypatch):
     calls = []
     monkeypatch.setattr(github.shutil, "which", lambda name: "/usr/bin/gh")
@@ -367,7 +397,7 @@ def test_history_sample_append_read_trim(tmp_path):
     rec = history.sample(snap, NOW)
     assert rec["level"] == "bad" and rec["projects"] == 13 and rec["disk_max_percent"] == 88.0
     assert rec["backup_age_h"] == 48.0, "the backup furthest behind decides"
-    assert rec["pythia_blocked_24h"] == 3310 and "projects" in rec
+    assert rec["pythia_blocked_24h"] == 3310 and rec["aegis_score"] == 74 and "projects" in rec
     assert not any(isinstance(v, str) and "/" in v for k, v in rec.items() if k != "t"), "numbers only, no paths"
     path = tmp_path / "h.jsonl"
     for days in (100, 50, 1):
@@ -422,7 +452,8 @@ def test_weekly_summary():
     assert 19 <= s["ci_red_hours"] <= 22, "CI failed for about 20 h of the demo week"
     assert s["worst_backup_age_h"] == 48.0 and s["disk_start"] < s["disk_end"] == 88.0
     assert sum(s["level_share"].values()) in (99, 100, 101)
-    assert len(s["still_open"]) == 5
+    assert len(s["still_open"]) == 6
+    assert (s["aegis_start"], s["aegis_end"]) == (61, 74)
     body = summary.text(s)
     assert body.startswith("Last 7 days: worse.") and "CI was red for about" in body and "Still open:" in body
     empty = summary.build([], {"findings": [], "level": "ok"}, 7, NOW)
