@@ -108,8 +108,21 @@ def snapshot(now: datetime | None = None) -> dict:
                        "summary": "1 of 13 switches are off: net.ipv6.conf.all.accept_redirects"},
                       {"id": "secure-boot", "title": "Secure Boot", "severity": "low", "status": "warn",
                        "summary": "Secure Boot is off"}]}
+    themis = {"version": "0.1.0", "time": _iso(now, minutes=3), "verdict": "alert", "level": "high",
+              "counts": {"info": 0, "low": 2, "medium": 3, "high": 1, "critical": 0}, "known_usb": 7,
+              "known_services": 118, "age_s": 180,
+              "recent": [{"time": _iso(now, minutes=50), "kind": "usb_keyboard", "severity": "high",
+                          "message": "A new USB device that types like a keyboard was plugged in: unnamed device "
+                                     "(1a86:e026). If it is not a keyboard you just connected, unplug it (BadUSB)."},
+                         {"time": _iso(now, hours=3), "kind": "new_service", "severity": "medium",
+                          "message": "A service ran for the first time: updater-helper.service"},
+                         {"time": _iso(now, hours=6), "kind": "usb_new", "severity": "low",
+                          "message": "New USB device: SanDisk Cruzer Blade (0781:5567)"},
+                         {"time": _iso(now, hours=9), "kind": "sudo_failed", "severity": "medium",
+                          "message": "sudo gave up after 3 wrong password(s) for alex: /usr/bin/apt upgrade"}]}
     local = {"projects": projects, "units": units, "backups": backups, "cerberus": cerberus, "cerberus_error": None,
              "pythia": pythia, "pythia_configured": True, "aegis": aegis, "aegis_configured": True,
+             "themis": themis, "themis_configured": True,
              "disks": disks, "errors": []}
     remote = {"repos": repos, "sites": sites, "errors": [], "at": _iso(now, minutes=2)}
     return build(s, local, remote, now)
@@ -137,7 +150,8 @@ def history(days: float = 7, now: datetime | None = None) -> list[dict]:
             "disk_max_percent": round(84 + 4 * (steps - i) / steps, 1),
             "cerberus_online": 6 + int(evening * 3), "cerberus_risky": 1,
             "pythia_queries_24h": int(15000 + 3000 * evening), "pythia_blocked_24h": int(2600 + 900 * evening),
-            "aegis_score": 61 if i / 4 > 72 else 74,     # the firewall was switched on three days ago
+            "aegis_score": 61 if i / 4 > 72 else 74,
+            "themis_events_24h": 4 if i < 8 else 1,       # the BadUSB alert was in the last two hours     # the firewall was switched on three days ago
         })
     return out
 

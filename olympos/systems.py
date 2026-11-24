@@ -200,6 +200,35 @@ def aegis(status_file: Path) -> dict | None:
             "counts": data.get("counts") or {}, "open": open_checks, "age_s": int(age)}
 
 
+SEVERITY_RANK = ("info", "low", "medium", "high", "critical")
+
+
+def themis(status_file: Path) -> dict | None:
+    """Themis's last scan: verdict, counts and the newest events (Themis already reduced their
+    text to capped printable ASCII; it is capped again here). None before the first --save."""
+    try:
+        data = json.loads(status_file.read_text())
+        age = time.time() - status_file.stat().st_mtime
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"{status_file}: {exc}") from None
+    if not isinstance(data, dict):
+        raise RuntimeError(f"{status_file}: not a Themis status file")
+    recent = []
+    for e in data.get("recent") or []:
+        if isinstance(e, dict) and e.get("severity") in SEVERITY_RANK:
+            recent.append({"time": str(e.get("time") or "")[:20], "kind": str(e.get("kind") or "")[:32],
+                           "severity": e["severity"], "message": str(e.get("message") or "")[:300]})
+    counts = data.get("counts") if isinstance(data.get("counts"), dict) else {}
+    return {"version": data.get("version"), "time": data.get("time"),
+            "verdict": data.get("verdict") if data.get("verdict") in ("quiet", "watch", "alert") else None,
+            "level": data.get("level") if data.get("level") in SEVERITY_RANK else None,
+            "counts": {k: v for k, v in counts.items() if k in SEVERITY_RANK and isinstance(v, int)},
+            "recent": recent[:10], "known_usb": data.get("known_usb"), "known_services": data.get("known_services"),
+            "age_s": int(age)}
+
+
 # --- disks ---------------------------------------------------------------------------------
 
 @dataclass

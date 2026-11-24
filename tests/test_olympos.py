@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from olympos import config, demo, github, health, projects, state, systems
+from olympos import config, demo, github, health, history, projects, state, systems
 from olympos.web import create_app
 
 NOW = datetime(2026, 11, 15, 12, 0, tzinfo=timezone.utc)
@@ -368,6 +368,36 @@ def test_aegis_status_and_rules(tmp_path):
     assert s.aegis_status.name == "status.json" and s.aegis_max_age_days == 7.0
 
 
+def test_themis_status_and_rules(tmp_path):
+    assert health.themis(None, False, 30) == []
+    assert health.themis(None, True, 30)[0].text.startswith("no scan saved yet")
+    f = tmp_path / "status.json"
+    f.write_text(json.dumps({"version": "0.1.0", "time": "2026-11-24T16:00:00Z", "verdict": "alert", "level": "high",
+                             "counts": {"low": 1, "medium": 2, "high": 4, "bogus": 9, "critical": "x"},
+                             "recent": [{"time": "2026-11-24T15:00:00Z", "kind": "brute_force", "severity": "high",
+                                         "message": "m" * 500},
+                                        {"kind": "usb_keyboard", "severity": "high", "message": "BadUSB"},
+                                        {"kind": "x", "severity": "nonsense", "message": "dropped"}, "junk"],
+                             "known_usb": 6, "known_services": 123}))
+    st = systems.themis(f)
+    assert st["counts"] == {"low": 1, "medium": 2, "high": 4} and len(st["recent"]) == 2
+    assert len(st["recent"][0]["message"]) == 300 and st["verdict"] == "alert"
+    got = [(x.level, x.text) for x in health.themis(st, True, 30)]
+    assert got == [("bad", "m" * 300), ("bad", "BadUSB"), ("bad", "2 more high event(s) in 24 h")]
+    quiet = {**st, "counts": {"medium": 2}, "recent": [], "age_s": 2 * 3600}
+    got = [(x.level, x.text) for x in health.themis(quiet, True, 30)]
+    assert got[0] == ("warn", "last scan is 2 h old") and got[1][0] == "warn" and "2 event(s)" in got[1][1]
+    assert systems.themis(tmp_path / "missing.json") is None
+    f.write_text("[]")
+    with pytest.raises(RuntimeError):
+        systems.themis(f)
+    assert config.parse({}).themis_status is None
+    s = config.parse({"themis": {"max_age_minutes": 15}})
+    assert s.themis_status.name == "status.json" and s.themis_max_age_minutes == 15.0
+    rec = history.sample(demo.snapshot(NOW), NOW)
+    assert rec["themis_events_24h"] == 4
+
+
 def test_github_owner_is_validated(monkeypatch):
     calls = []
     monkeypatch.setattr(github.shutil, "which", lambda name: "/usr/bin/gh")
@@ -452,7 +482,7 @@ def test_weekly_summary():
     assert 19 <= s["ci_red_hours"] <= 22, "CI failed for about 20 h of the demo week"
     assert s["worst_backup_age_h"] == 48.0 and s["disk_start"] < s["disk_end"] == 88.0
     assert sum(s["level_share"].values()) in (99, 100, 101)
-    assert len(s["still_open"]) == 6
+    assert len(s["still_open"]) == 7
     assert (s["aegis_start"], s["aegis_end"]) == (61, 74)
     body = summary.text(s)
     assert body.startswith("Last 7 days: worse.") and "CI was red for about" in body and "Still open:" in body

@@ -209,6 +209,27 @@ function renderAegis(s) {
   $("#aegis").replaceChildren(head, tally, ...open);
 }
 
+function renderThemis(s) {
+  $("#themis-panel").hidden = !s.themis_configured;
+  if (!s.themis_configured) return;
+  const t = s.themis;
+  if (!t) {
+    $("#themis").replaceChildren(el("p", { class: "muted" }, "No scan saved yet: run themis scan --save."));
+    return;
+  }
+  const cls = t.verdict === "alert" ? "bad" : t.verdict === "watch" ? "warn" : "good";
+  const n = t.counts || {};
+  const head = el("div", { class: "item__head" }, el("span", { class: "muted" }, `Themis ${t.version} · ${ago(t.time)}`),
+    badge(t.verdict || "unknown", cls));
+  const tally = el("p", { class: "muted" },
+    `24 h: ${(n.high ?? 0) + (n.critical ?? 0)} high · ${n.medium ?? 0} medium · ${n.low ?? 0} low · ` +
+    `${t.known_usb ?? "?"} USB devices and ${t.known_services ?? "?"} services known`);
+  const sevCls = { critical: "bad", high: "bad", medium: "warn", low: "good", info: "good" };
+  const recent = (t.recent || []).slice(0, 6).map((e) => item(e.message, badge(e.severity, sevCls[e.severity] || "warn"), `${e.kind} · ${ago(e.time)}`));
+  if (!recent.length) recent.push(el("p", { class: "muted" }, "Nothing in the last 24 hours."));
+  $("#themis").replaceChildren(head, tally, ...recent);
+}
+
 function renderUnits(s) {
   if (!s.units.length) {
     $("#units").replaceChildren(el("p", { class: "muted" }, "No units configured."));
@@ -248,6 +269,7 @@ const SERIES = [
   ["backup_age_h", "oldest last backup (h)", (v) => (v == null ? "never" : v.toFixed(1)), null],
   ["disk_max_percent", "fullest disk (%)", (v) => (v == null ? "–" : `${v}%`), null],
   ["pythia_blocked_24h", "DNS blocked (24 h)", (v) => (v == null ? "–" : String(v)), null],
+  ["themis_events_24h", "laptop events (24 h, medium+)", (v) => (v == null ? "–" : String(v)), null],
   ["aegis_score", "laptop security score", (v) => (v == null ? "–" : `${v}/100`), null],
   ["cerberus_online", "devices online", (v) => (v == null ? "–" : String(v)), null],
   ["unpushed", "projects with unpushed work", (v) => String(v), null],
@@ -302,6 +324,7 @@ function render(s) {
   renderBackups(s);
   renderCerberus(s);
   renderPythia(s);
+  renderThemis(s);
   renderAegis(s);
   renderUnits(s);
   renderDisksSites(s);

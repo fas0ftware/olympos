@@ -181,6 +181,28 @@ def aegis(status: dict | None, configured: bool, max_age_days: float) -> list[Fi
     return out
 
 
+def themis(status: dict | None, configured: bool, max_age_minutes: float) -> list[Finding]:
+    """High events of the last 24 h are problems, medium ones a warning; a silent Themis is a warning too."""
+    if not configured:
+        return []
+    if status is None:
+        return [Finding("warn", "security", "Themis", "no scan saved yet (themis scan --save)")]
+    out = []
+    if status.get("age_s", 0) > max_age_minutes * 60:
+        out.append(Finding("warn", "security", "Themis", f"last scan is {human_age(status['age_s'] / 3600)} old"))
+    counts = status.get("counts") or {}
+    shown = [e for e in status.get("recent") or [] if e.get("severity") in ("high", "critical")][:3]
+    for e in shown:
+        out.append(Finding("bad", "security", "Themis", e.get("message") or e.get("kind") or "?"))
+    high = counts.get("high", 0) + counts.get("critical", 0)
+    if high > len(shown):
+        out.append(Finding("bad", "security", "Themis", f"{high - len(shown)} more high event(s) in 24 h"))
+    if not high and counts.get("medium"):
+        out.append(Finding("warn", "security", "Themis", f"{counts['medium']} event(s) worth a look in 24 h "
+                                                         "(failed sudo, SSH, new services)"))
+    return out
+
+
 def disks(items: list[dict], warn_percent: int) -> list[Finding]:
     out = []
     for d in items:
