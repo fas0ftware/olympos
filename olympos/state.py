@@ -96,6 +96,12 @@ class State:
                 aegis = systems.aegis(self.s.aegis_status)
             except RuntimeError as exc:
                 errors.append(f"Aegis: {exc}")
+        hestia = None
+        if self.s.hestia_status:
+            try:
+                hestia = systems.hestia(self.s.hestia_status)
+            except RuntimeError as exc:
+                errors.append(f"Hestia: {exc}")
         themis = None
         if self.s.themis_status:
             try:
@@ -106,6 +112,7 @@ class State:
                 "pythia_configured": bool(self.s.pythia_status),
                 "aegis": aegis, "aegis_configured": bool(self.s.aegis_status),
                 "themis": themis, "themis_configured": bool(self.s.themis_status),
+                "hestia": hestia, "hestia_configured": bool(self.s.hestia_status),
                 "cerberus_error": cerberus_error, "disks": [d.to_dict() for d in systems.disks(self.s.disks)],
                 "errors": errors}
 
@@ -140,6 +147,7 @@ def build(s: Settings, local: dict, remote: dict, now: datetime | None = None) -
         + health.cerberus(local["cerberus"], local["cerberus_error"])
         + health.pythia(local.get("pythia"), local.get("pythia_configured", False))
         + health.aegis(local.get("aegis"), local.get("aegis_configured", False), s.aegis_max_age_days)
+        + health.hestia(local.get("hestia"), local.get("hestia_configured", False), s.hestia_max_age_minutes)
         + health.themis(local.get("themis"), local.get("themis_configured", False), s.themis_max_age_minutes)
         + health.disks(local["disks"], s.disk_warn_percent)
         + health.sites(remote["sites"])
@@ -176,6 +184,8 @@ def build(s: Settings, local: dict, remote: dict, now: datetime | None = None) -
         "aegis": local.get("aegis"),
         "aegis_configured": local.get("aegis_configured", False),
         "themis": local.get("themis"),
+        "hestia": local.get("hestia"),
+        "hestia_configured": local.get("hestia_configured", False),
         "themis_configured": local.get("themis_configured", False),
         "disks": local["disks"],
         "sites": remote["sites"],

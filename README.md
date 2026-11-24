@@ -50,6 +50,7 @@ versions and roadmaps, on a made-up machine (paths, times, backups and network a
 | **DNS filter** | [Pythia](https://github.com/fas0ftware/pythia)'s status file | blocking or paused, queries and blocks in 24 h, upstream health; "stopped" when the file is more than 3 minutes old |
 | **Laptop security** | Aegis's status file (`python -m aegis --save`) | score, and the checks that fail or warn; a failing *high* check (firewall off, disk not encrypted, security updates waiting) is a problem, other failures are warnings; a warning when the last audit is more than 2 days old. Only titles and one-line summaries are read, never Aegis's details or fix commands |
 | **Laptop events** | Themis's status file (`themis scan --save`, every 5 minutes from its timer) | the last 24 hours of failed logins, sudo misuse, SSH, brute force, new USB devices (a new *keyboard* is BadUSB) and services that ran for the first time; high events are problems, medium ones a warning, a warning when Themis has not written for 30 minutes. Event texts are capped again on reading |
+| **Laptop health** | Hestia's status file (`hestia check --save`, every 15 minutes from its timer) | disk space and I/O errors, temperatures, battery wear, wireless-device batteries, memory, load, failed system and user services, a pending restart: a *bad* check is a problem, a *warn* one a warning, under the check's own title; a warning when Hestia has not written for an hour. At most five details per check are read, capped |
 | **Disks** | `statvfs` | free space, or "not mounted" for an unplugged backup disk |
 | **Websites** | an HTTP `HEAD` | status code and response time |
 
@@ -164,8 +165,8 @@ note = "replaced by my-new-tool"
 
 | Level | Examples |
 |---|---|
-| **problem** | CI failing (with the failing job names); a backup failed, is older than `max_age_hours` or never succeeded; a verification found damage; a service failed or is not installed; the last job a timer started failed; a disk is not mounted or 95 % full; a website is down; decoy touches or high alerts in Cerberus; a failing *high* Aegis check; a high Themis event in the last 24 h |
-| **warning** | unpushed commits; a timer that is not running; data not verified for `check_max_age_days`; a disk over `warn_percent`; risky ports on the network; Cerberus not reachable; another failing Aegis check or an Aegis audit older than `max_age_days`; medium Themis events, or no Themis scan for `max_age_minutes`; a git or GitHub error |
+| **problem** | CI failing (with the failing job names); a backup failed, is older than `max_age_hours` or never succeeded; a verification found damage; a service failed or is not installed; the last job a timer started failed; a disk is not mounted or 95 % full; a website is down; decoy touches or high alerts in Cerberus; a failing *high* Aegis check; a high Themis event in the last 24 h; a bad Hestia check |
+| **warning** | unpushed commits; a timer that is not running; data not verified for `check_max_age_days`; a disk over `warn_percent`; risky ports on the network; Cerberus not reachable; another failing Aegis check or an Aegis audit older than `max_age_days`; medium Themis events, or no Themis scan for `max_age_minutes`; a Hestia check that warns, or no Hestia check for an hour; a git or GitHub error |
 | **note** (hidden unless *show notes*) | uncommitted files, a feature branch, open pull requests, commits to pull, a project with no GitHub repository yet, new devices on the network, Pythia away from home, Aegis checks with a warning, a test image 5 or more code commits older than the code |
 
 ## Security and privacy
@@ -208,7 +209,7 @@ olympos/
   config.py     olympos.toml
   projects.py   local git repositories: version, language, state, roadmap, stage
   github.py     one GraphQL query per owner via gh
-  systems.py    systemd units, Mnemosyne, Cerberus, Pythia, Aegis, Themis, disks, websites
+  systems.py    systemd units, Mnemosyne, Cerberus, Pythia, Aegis, Themis, Hestia, disks, websites
   health.py     findings and the overall level
   state.py      caching; GitHub and sites refreshed in the background
   demo.py       fictional data for screenshots
@@ -226,6 +227,7 @@ olympos/
   in the repository.
 - ~~Laptop security from Aegis.~~ Done in 0.5: score, failing checks as findings, score in the history.
 - ~~Laptop events from Themis.~~ Done in 0.6: high events as problems, a panel, events per day in the history.
+- ~~Laptop health from Hestia.~~ Done in 0.7: bad and warning checks as findings, a panel, checks not ok in the history.
 - Coverage per project. None of the projects publishes a coverage number yet; this waits until
   their CI does (for example a `coverage.json` artifact).
 

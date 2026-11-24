@@ -181,6 +181,24 @@ def aegis(status: dict | None, configured: bool, max_age_days: float) -> list[Fi
     return out
 
 
+def hestia(status: dict | None, configured: bool, max_age_minutes: float) -> list[Finding]:
+    """Each bad check is a problem and each warning a warning, under the check's own title."""
+    if not configured:
+        return []
+    if status is None:
+        return [Finding("warn", "health", "Hestia", "no check saved yet (hestia check --save)")]
+    out = []
+    if status.get("age_s", 0) > max_age_minutes * 60:
+        out.append(Finding("warn", "health", "Hestia", f"last check is {human_age(status['age_s'] / 3600)} old"))
+    for c in status.get("checks") or []:
+        if c.get("status") in ("bad", "warn"):
+            text = c.get("summary") or c["status"]
+            if c.get("details") and c.get("id") in ("services", "disk-errors", "device-batteries"):
+                text += ": " + "; ".join(c["details"][:3])
+            out.append(Finding("bad" if c["status"] == "bad" else "warn", "health", c.get("title") or "?", text))
+    return out
+
+
 def themis(status: dict | None, configured: bool, max_age_minutes: float) -> list[Finding]:
     """High events of the last 24 h are problems, medium ones a warning; a silent Themis is a warning too."""
     if not configured:

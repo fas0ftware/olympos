@@ -229,6 +229,34 @@ def themis(status_file: Path) -> dict | None:
             "age_s": int(age)}
 
 
+HESTIA_STATUS = ("ok", "unknown", "warn", "bad")
+
+
+def hestia(status_file: Path) -> dict | None:
+    """Hestia's last health check: overall status and every check (id, title, status, summary,
+    at most five details, all capped). None before the first --save."""
+    try:
+        data = json.loads(status_file.read_text())
+        age = time.time() - status_file.stat().st_mtime
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"{status_file}: {exc}") from None
+    if not isinstance(data, dict):
+        raise RuntimeError(f"{status_file}: not a Hestia status file")
+    checks = []
+    for c in data.get("checks") or []:
+        if isinstance(c, dict) and c.get("status") in HESTIA_STATUS:
+            details = [str(d)[:160] for d in (c.get("details") or []) if isinstance(d, str)][:5]
+            checks.append({"id": str(c.get("id") or "")[:32], "title": str(c.get("title") or "")[:40],
+                           "status": c["status"], "summary": str(c.get("summary") or "")[:200], "details": details})
+    counts = data.get("counts") if isinstance(data.get("counts"), dict) else {}
+    return {"version": data.get("version"), "time": data.get("time"),
+            "status": data.get("status") if data.get("status") in HESTIA_STATUS else None,
+            "counts": {k: v for k, v in counts.items() if k in HESTIA_STATUS and isinstance(v, int)},
+            "checks": checks, "age_s": int(age)}
+
+
 # --- disks ---------------------------------------------------------------------------------
 
 @dataclass

@@ -398,6 +398,37 @@ def test_themis_status_and_rules(tmp_path):
     assert rec["themis_events_24h"] == 4
 
 
+def test_hestia_status_and_rules(tmp_path):
+    assert health.hestia(None, False, 60) == []
+    assert health.hestia(None, True, 60)[0].text.startswith("no check saved yet")
+    f = tmp_path / "status.json"
+    f.write_text(json.dumps({"version": "0.1.0", "time": "2026-11-24T16:00:00Z", "status": "bad",
+                             "counts": {"ok": 5, "warn": 1, "bad": 1, "x": 3},
+                             "checks": [
+                                 {"id": "services", "title": "Services", "status": "bad", "summary": "1 service(s) failed",
+                                  "details": ["backup.service (user): Nightly backup", 7]},
+                                 {"id": "battery", "title": "Battery", "status": "warn", "summary": "34% worn",
+                                  "details": ["d" * 400]},
+                                 {"id": "memory", "title": "Memory", "status": "ok", "summary": "48% available"},
+                                 {"id": "bogus", "status": "sideways"}, "junk"]}))
+    st = systems.hestia(f)
+    assert [c["id"] for c in st["checks"]] == ["services", "battery", "memory"]
+    assert st["checks"][0]["details"] == ["backup.service (user): Nightly backup"]
+    assert len(st["checks"][1]["details"][0]) == 160 and st["counts"] == {"ok": 5, "warn": 1, "bad": 1}
+    got = [(x.level, x.subject, x.text) for x in health.hestia(st, True, 60)]
+    assert got == [("bad", "Services", "1 service(s) failed: backup.service (user): Nightly backup"),
+                   ("warn", "Battery", "34% worn")]
+    stale = health.hestia({**st, "checks": [], "age_s": 3 * 3600}, True, 60)
+    assert [(x.level, x.text) for x in stale] == [("warn", "last check is 3 h old")]
+    assert systems.hestia(tmp_path / "missing.json") is None
+    f.write_text("1")
+    with pytest.raises(RuntimeError):
+        systems.hestia(f)
+    assert config.parse({}).hestia_status is None
+    assert config.parse({"hestia": {"max_age_minutes": 90}}).hestia_status.name == "status.json"
+    assert history.sample(demo.snapshot(NOW), NOW)["hestia_problems"] == 2
+
+
 def test_github_owner_is_validated(monkeypatch):
     calls = []
     monkeypatch.setattr(github.shutil, "which", lambda name: "/usr/bin/gh")
@@ -482,7 +513,7 @@ def test_weekly_summary():
     assert 19 <= s["ci_red_hours"] <= 22, "CI failed for about 20 h of the demo week"
     assert s["worst_backup_age_h"] == 48.0 and s["disk_start"] < s["disk_end"] == 88.0
     assert sum(s["level_share"].values()) in (99, 100, 101)
-    assert len(s["still_open"]) == 7
+    assert len(s["still_open"]) == 9
     assert (s["aegis_start"], s["aegis_end"]) == (61, 74)
     body = summary.text(s)
     assert body.startswith("Last 7 days: worse.") and "CI was red for about" in body and "Still open:" in body

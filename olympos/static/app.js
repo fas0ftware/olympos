@@ -209,6 +209,22 @@ function renderAegis(s) {
   $("#aegis").replaceChildren(head, tally, ...open);
 }
 
+function renderHestia(s) {
+  $("#hestia-panel").hidden = !s.hestia_configured;
+  if (!s.hestia_configured) return;
+  const h = s.hestia;
+  if (!h) {
+    $("#hestia").replaceChildren(el("p", { class: "muted" }, "No check saved yet: run hestia check --save."));
+    return;
+  }
+  const cls = { ok: "good", unknown: "warn", warn: "warn", bad: "bad" };
+  const head = el("div", { class: "item__head" }, el("span", { class: "muted" }, `Hestia ${h.version} · ${ago(h.time)}`),
+    badge(h.status || "unknown", cls[h.status] || "warn"));
+  const rows = (h.checks || []).map((c) => item(c.title, badge(c.status, cls[c.status] || "warn"),
+    c.status === "ok" ? c.summary : [c.summary, ...(c.details || []).slice(0, 3)].join(" · ")));
+  $("#hestia").replaceChildren(head, ...rows);
+}
+
 function renderThemis(s) {
   $("#themis-panel").hidden = !s.themis_configured;
   if (!s.themis_configured) return;
@@ -269,6 +285,7 @@ const SERIES = [
   ["backup_age_h", "oldest last backup (h)", (v) => (v == null ? "never" : v.toFixed(1)), null],
   ["disk_max_percent", "fullest disk (%)", (v) => (v == null ? "–" : `${v}%`), null],
   ["pythia_blocked_24h", "DNS blocked (24 h)", (v) => (v == null ? "–" : String(v)), null],
+  ["hestia_problems", "laptop health checks not ok", (v) => (v == null ? "–" : String(v)), null],
   ["themis_events_24h", "laptop events (24 h, medium+)", (v) => (v == null ? "–" : String(v)), null],
   ["aegis_score", "laptop security score", (v) => (v == null ? "–" : `${v}/100`), null],
   ["cerberus_online", "devices online", (v) => (v == null ? "–" : String(v)), null],
@@ -324,6 +341,7 @@ function render(s) {
   renderBackups(s);
   renderCerberus(s);
   renderPythia(s);
+  renderHestia(s);
   renderThemis(s);
   renderAegis(s);
   renderUnits(s);

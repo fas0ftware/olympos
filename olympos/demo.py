@@ -108,6 +108,21 @@ def snapshot(now: datetime | None = None) -> dict:
                        "summary": "1 of 13 switches are off: net.ipv6.conf.all.accept_redirects"},
                       {"id": "secure-boot", "title": "Secure Boot", "severity": "low", "status": "warn",
                        "summary": "Secure Boot is off"}]}
+    hestia = {"version": "0.1.0", "time": _iso(now, minutes=7), "status": "warn", "age_s": 420,
+              "counts": {"ok": 6, "unknown": 0, "warn": 2, "bad": 0},
+              "checks": [
+                  {"id": "disks", "title": "Disk space", "status": "ok", "summary": "3 filesystem(s), fullest / at 61%",
+                   "details": []},
+                  {"id": "temperatures", "title": "Temperatures", "status": "ok",
+                   "summary": "hottest: k10temp Tctl at 58 °C", "details": []},
+                  {"id": "battery", "title": "Battery", "status": "warn",
+                   "summary": "BAT0 is 34% worn: it holds 66% of what it did when new; plan a replacement",
+                   "details": ["612 charge cycles"]},
+                  {"id": "device-batteries", "title": "Wireless devices", "status": "warn",
+                   "summary": "1 device battery(ies) almost empty", "details": ["MX Master 3: 8% left"]},
+                  {"id": "memory", "title": "Memory", "status": "ok", "summary": "48% available", "details": []},
+                  {"id": "services", "title": "Services", "status": "ok", "summary": "no failed services",
+                   "details": []}]}
     themis = {"version": "0.1.0", "time": _iso(now, minutes=3), "verdict": "alert", "level": "high",
               "counts": {"info": 0, "low": 2, "medium": 3, "high": 1, "critical": 0}, "known_usb": 7,
               "known_services": 118, "age_s": 180,
@@ -122,7 +137,7 @@ def snapshot(now: datetime | None = None) -> dict:
                           "message": "sudo gave up after 3 wrong password(s) for alex: /usr/bin/apt upgrade"}]}
     local = {"projects": projects, "units": units, "backups": backups, "cerberus": cerberus, "cerberus_error": None,
              "pythia": pythia, "pythia_configured": True, "aegis": aegis, "aegis_configured": True,
-             "themis": themis, "themis_configured": True,
+             "themis": themis, "themis_configured": True, "hestia": hestia, "hestia_configured": True,
              "disks": disks, "errors": []}
     remote = {"repos": repos, "sites": sites, "errors": [], "at": _iso(now, minutes=2)}
     return build(s, local, remote, now)
@@ -151,6 +166,7 @@ def history(days: float = 7, now: datetime | None = None) -> list[dict]:
             "cerberus_online": 6 + int(evening * 3), "cerberus_risky": 1,
             "pythia_queries_24h": int(15000 + 3000 * evening), "pythia_blocked_24h": int(2600 + 900 * evening),
             "aegis_score": 61 if i / 4 > 72 else 74,
+            "hestia_problems": 2,
             "themis_events_24h": 4 if i < 8 else 1,       # the BadUSB alert was in the last two hours     # the firewall was switched on three days ago
         })
     return out
