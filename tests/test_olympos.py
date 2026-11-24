@@ -429,6 +429,33 @@ def test_hestia_status_and_rules(tmp_path):
     assert history.sample(demo.snapshot(NOW), NOW)["hestia_problems"] == 2
 
 
+def test_iris_status_and_rules(tmp_path):
+    assert health.iris(None, False, 10) == []
+    assert health.iris(None, True, 10)[0].text.startswith("not running yet")
+    f = tmp_path / "status.json"
+    f.write_text(json.dumps({"version": "0.1.0", "time": "2026-11-24T17:00:00Z", "messages_24h": 9, "undelivered": 2,
+                             "decisions": {"deliver": {"messages": 4, "repeats": 1}, "quiet": {"messages": 3, "repeats": 0},
+                                           "bogus": {"messages": 9}},
+                             "recent": [{"ts": 1, "topic": "hestia", "title": "t" * 400, "priority": "high",
+                                         "decision": "deliver", "repeats": 0},
+                                        {"ts": 2, "topic": "x", "title": "y", "priority": "loud", "decision": "deliver"},
+                                        "junk"]}))
+    st = systems.iris(f)
+    assert set(st["decisions"]) == {"deliver", "quiet"} and len(st["recent"]) == 1
+    assert len(st["recent"][0]["title"]) == 200 and st["undelivered"] == 2
+    got = [(x.level, x.text) for x in health.iris(st, True, 10)]
+    assert got == [("warn", "2 message(s) could not be delivered yet"), ("info", "3 message(s) held for the morning digest")]
+    stale = health.iris({**st, "undelivered": 0, "decisions": {}, "age_s": 3600}, True, 10)
+    assert [(x.level, x.text[:25]) for x in stale] == [("warn", "status is 1 h old: is the")]
+    assert systems.iris(tmp_path / "missing.json") is None
+    f.write_text('"x"')
+    with pytest.raises(RuntimeError):
+        systems.iris(f)
+    assert config.parse({}).iris_status is None
+    assert config.parse({"iris": {"max_age_minutes": 5}}).iris_max_age_minutes == 5.0
+    assert history.sample(demo.snapshot(NOW), NOW)["iris_messages_24h"] == 24
+
+
 def test_github_owner_is_validated(monkeypatch):
     calls = []
     monkeypatch.setattr(github.shutil, "which", lambda name: "/usr/bin/gh")

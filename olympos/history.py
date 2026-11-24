@@ -47,6 +47,7 @@ def sample(snap: dict, now: datetime | None = None) -> dict:
     ae = snap.get("aegis") or {}
     th = snap.get("themis") or {}
     he = snap.get("hestia") or {}
+    ir = snap.get("iris") or {}
     return {
         "t": now.isoformat(timespec="seconds"),
         "level": snap["level"],
@@ -64,6 +65,7 @@ def sample(snap: dict, now: datetime | None = None) -> dict:
         "pythia_queries_24h": py.get("queries_24h"),
         "pythia_blocked_24h": py.get("blocked_24h"),
         "aegis_score": ae.get("score"),
+        "iris_messages_24h": ir.get("messages_24h"),
         "hestia_problems": (sum(1 for c in he["checks"] if c["status"] in ("warn", "bad"))
                             if he.get("checks") is not None else None),
         "themis_events_24h": (sum(v for k, v in th["counts"].items() if k in ("medium", "high", "critical"))

@@ -42,6 +42,8 @@ class Settings:
     themis_max_age_minutes: float = 30.0
     hestia_status: Path | None = None   # Hestia's status file; None = not watched
     hestia_max_age_minutes: float = 60.0
+    iris_status: Path | None = None     # Iris's status file; None = not watched
+    iris_max_age_minutes: float = 10.0
     disks: list[Path] = field(default_factory=list)
     disk_warn_percent: int = 85
     sites: list[Site] = field(default_factory=list)
@@ -104,6 +106,10 @@ def parse(raw: dict) -> Settings:
     if th:
         s.themis_status = Path(th.get("status_file", "~/.local/state/themis/status.json")).expanduser()
         s.themis_max_age_minutes = float(th.get("max_age_minutes", s.themis_max_age_minutes))
+    ir = raw.get("iris", {})
+    if ir:
+        s.iris_status = Path(ir.get("status_file", "~/.local/state/iris/status.json")).expanduser()
+        s.iris_max_age_minutes = float(ir.get("max_age_minutes", s.iris_max_age_minutes))
     he = raw.get("hestia", {})
     if he:
         s.hestia_status = Path(he.get("status_file", "~/.local/state/hestia/status.json")).expanduser()

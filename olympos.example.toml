@@ -34,6 +34,12 @@ check_max_age_days = 3     # data should be re-verified at least this often
 # status_file = "~/.local/state/themis/status.json"
 # max_age_minutes = 30
 
+[iris]
+# Iris's status file (its service rewrites it every minute); remove this section if you do not
+# run Iris. A warning when messages could not be delivered or the file is older than max_age_minutes.
+# status_file = "~/.local/state/iris/status.json"
+# max_age_minutes = 10
+
 [hestia]
 # Hestia's status file (hestia check --save, every 15 minutes from its timer); remove this
 # section if you do not run Hestia. A warning when it has not been written for max_age_minutes.

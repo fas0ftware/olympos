@@ -209,6 +209,26 @@ function renderAegis(s) {
   $("#aegis").replaceChildren(head, tally, ...open);
 }
 
+function renderIris(s) {
+  $("#iris-panel").hidden = !s.iris_configured;
+  if (!s.iris_configured) return;
+  const i = s.iris;
+  if (!i) {
+    $("#iris").replaceChildren(el("p", { class: "muted" }, "Iris has not written its status yet."));
+    return;
+  }
+  const d = i.decisions || {};
+  const n = (k) => (d[k] ? d[k].messages : 0);
+  const head = el("div", { class: "item__head" }, el("span", { class: "muted" }, `Iris ${i.version} · ${ago(i.time)}`),
+    badge(i.undelivered ? `${i.undelivered} undelivered` : "delivering", i.undelivered ? "warn" : "good"));
+  const tally = el("p", { class: "muted" }, `24 h: ${i.messages_24h} in · ${n("deliver")} sent · ${n("quiet")} held for the morning · ${n("below_min")} stored only`);
+  const cls = { urgent: "bad", high: "bad", default: "warn", low: "good", min: "good" };
+  const why = { deliver: "sent", quiet: "held", below_min: "stored", duplicate: "repeat" };
+  const rows = (i.recent || []).slice(0, 6).map((m) => item(m.title, badge(m.priority, cls[m.priority] || "warn"),
+    `${m.topic} · ${why[m.decision] || m.decision}${m.repeats ? ` · ×${m.repeats + 1}` : ""} · ${ago(new Date(m.ts * 1000).toISOString())}`));
+  $("#iris").replaceChildren(head, tally, ...rows);
+}
+
 function renderHestia(s) {
   $("#hestia-panel").hidden = !s.hestia_configured;
   if (!s.hestia_configured) return;
@@ -285,6 +305,7 @@ const SERIES = [
   ["backup_age_h", "oldest last backup (h)", (v) => (v == null ? "never" : v.toFixed(1)), null],
   ["disk_max_percent", "fullest disk (%)", (v) => (v == null ? "–" : `${v}%`), null],
   ["pythia_blocked_24h", "DNS blocked (24 h)", (v) => (v == null ? "–" : String(v)), null],
+  ["iris_messages_24h", "notifications (24 h)", (v) => (v == null ? "–" : String(v)), null],
   ["hestia_problems", "laptop health checks not ok", (v) => (v == null ? "–" : String(v)), null],
   ["themis_events_24h", "laptop events (24 h, medium+)", (v) => (v == null ? "–" : String(v)), null],
   ["aegis_score", "laptop security score", (v) => (v == null ? "–" : `${v}/100`), null],
@@ -341,6 +362,7 @@ function render(s) {
   renderBackups(s);
   renderCerberus(s);
   renderPythia(s);
+  renderIris(s);
   renderHestia(s);
   renderThemis(s);
   renderAegis(s);

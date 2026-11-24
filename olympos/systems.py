@@ -229,6 +229,38 @@ def themis(status_file: Path) -> dict | None:
             "age_s": int(age)}
 
 
+IRIS_DECISIONS = ("deliver", "quiet", "below_min", "duplicate")
+IRIS_PRIORITIES = ("min", "low", "default", "high", "urgent")
+
+
+def iris(status_file: Path) -> dict | None:
+    """Iris's inbox counts and the newest messages (titles only, capped). None before it ran."""
+    try:
+        data = json.loads(status_file.read_text())
+        age = time.time() - status_file.stat().st_mtime
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"{status_file}: {exc}") from None
+    if not isinstance(data, dict):
+        raise RuntimeError(f"{status_file}: not an Iris status file")
+    decisions = {}
+    for k, v in (data.get("decisions") or {}).items():
+        if k in IRIS_DECISIONS and isinstance(v, dict):
+            decisions[k] = {"messages": int(v.get("messages") or 0), "repeats": int(v.get("repeats") or 0)}
+    recent = []
+    for m in data.get("recent") or []:
+        if isinstance(m, dict) and m.get("priority") in IRIS_PRIORITIES and m.get("decision") in IRIS_DECISIONS:
+            recent.append({"ts": float(m.get("ts") or 0), "topic": str(m.get("topic") or "")[:32],
+                           "title": str(m.get("title") or "")[:200], "priority": m["priority"],
+                           "decision": m["decision"], "repeats": int(m.get("repeats") or 0)})
+    def num(k):
+        v = data.get(k)
+        return v if isinstance(v, int) else 0
+    return {"version": data.get("version"), "time": data.get("time"), "messages_24h": num("messages_24h"),
+            "undelivered": num("undelivered"), "decisions": decisions, "recent": recent[:10], "age_s": int(age)}
+
+
 HESTIA_STATUS = ("ok", "unknown", "warn", "bad")
 
 

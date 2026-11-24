@@ -96,6 +96,12 @@ class State:
                 aegis = systems.aegis(self.s.aegis_status)
             except RuntimeError as exc:
                 errors.append(f"Aegis: {exc}")
+        iris = None
+        if self.s.iris_status:
+            try:
+                iris = systems.iris(self.s.iris_status)
+            except RuntimeError as exc:
+                errors.append(f"Iris: {exc}")
         hestia = None
         if self.s.hestia_status:
             try:
@@ -113,6 +119,7 @@ class State:
                 "aegis": aegis, "aegis_configured": bool(self.s.aegis_status),
                 "themis": themis, "themis_configured": bool(self.s.themis_status),
                 "hestia": hestia, "hestia_configured": bool(self.s.hestia_status),
+                "iris": iris, "iris_configured": bool(self.s.iris_status),
                 "cerberus_error": cerberus_error, "disks": [d.to_dict() for d in systems.disks(self.s.disks)],
                 "errors": errors}
 
@@ -147,6 +154,7 @@ def build(s: Settings, local: dict, remote: dict, now: datetime | None = None) -
         + health.cerberus(local["cerberus"], local["cerberus_error"])
         + health.pythia(local.get("pythia"), local.get("pythia_configured", False))
         + health.aegis(local.get("aegis"), local.get("aegis_configured", False), s.aegis_max_age_days)
+        + health.iris(local.get("iris"), local.get("iris_configured", False), s.iris_max_age_minutes)
         + health.hestia(local.get("hestia"), local.get("hestia_configured", False), s.hestia_max_age_minutes)
         + health.themis(local.get("themis"), local.get("themis_configured", False), s.themis_max_age_minutes)
         + health.disks(local["disks"], s.disk_warn_percent)
@@ -185,6 +193,8 @@ def build(s: Settings, local: dict, remote: dict, now: datetime | None = None) -
         "aegis_configured": local.get("aegis_configured", False),
         "themis": local.get("themis"),
         "hestia": local.get("hestia"),
+        "iris": local.get("iris"),
+        "iris_configured": local.get("iris_configured", False),
         "hestia_configured": local.get("hestia_configured", False),
         "themis_configured": local.get("themis_configured", False),
         "disks": local["disks"],

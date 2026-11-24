@@ -108,6 +108,14 @@ def snapshot(now: datetime | None = None) -> dict:
                        "summary": "1 of 13 switches are off: net.ipv6.conf.all.accept_redirects"},
                       {"id": "secure-boot", "title": "Secure Boot", "severity": "low", "status": "warn",
                        "summary": "Secure Boot is off"}]}
+    iris = {"version": "0.1.0", "time": _iso(now, minutes=1), "messages_24h": 24, "undelivered": 0, "age_s": 60,
+            "decisions": {"deliver": {"messages": 5, "repeats": 3}, "quiet": {"messages": 3, "repeats": 13}},
+            "recent": [{"ts": now.timestamp() - 300, "topic": "hestia", "title": "Hestia: Services recovered on laptop",
+                        "priority": "low", "decision": "deliver", "repeats": 0},
+                       {"ts": now.timestamp() - 1200, "topic": "cerberus", "title": "Cerberus [CRITICAL] maze touch",
+                        "priority": "urgent", "decision": "deliver", "repeats": 3},
+                       {"ts": now.timestamp() - 3000, "topic": "themis", "title": "Themis [HIGH] usb keyboard",
+                        "priority": "high", "decision": "deliver", "repeats": 0}]}
     hestia = {"version": "0.1.0", "time": _iso(now, minutes=7), "status": "warn", "age_s": 420,
               "counts": {"ok": 6, "unknown": 0, "warn": 2, "bad": 0},
               "checks": [
@@ -138,6 +146,7 @@ def snapshot(now: datetime | None = None) -> dict:
     local = {"projects": projects, "units": units, "backups": backups, "cerberus": cerberus, "cerberus_error": None,
              "pythia": pythia, "pythia_configured": True, "aegis": aegis, "aegis_configured": True,
              "themis": themis, "themis_configured": True, "hestia": hestia, "hestia_configured": True,
+             "iris": iris, "iris_configured": True,
              "disks": disks, "errors": []}
     remote = {"repos": repos, "sites": sites, "errors": [], "at": _iso(now, minutes=2)}
     return build(s, local, remote, now)
@@ -167,6 +176,7 @@ def history(days: float = 7, now: datetime | None = None) -> list[dict]:
             "pythia_queries_24h": int(15000 + 3000 * evening), "pythia_blocked_24h": int(2600 + 900 * evening),
             "aegis_score": 61 if i / 4 > 72 else 74,
             "hestia_problems": 2,
+            "iris_messages_24h": 24 if i < 96 else 9,
             "themis_events_24h": 4 if i < 8 else 1,       # the BadUSB alert was in the last two hours     # the firewall was switched on three days ago
         })
     return out

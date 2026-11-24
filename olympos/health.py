@@ -181,6 +181,26 @@ def aegis(status: dict | None, configured: bool, max_age_days: float) -> list[Fi
     return out
 
 
+def iris(status: dict | None, configured: bool, max_age_minutes: float) -> list[Finding]:
+    """Messages that could not be delivered are a warning (an alert may be sitting unseen);
+    a status file that stopped changing means Iris is not running."""
+    if not configured:
+        return []
+    if status is None:
+        return [Finding("warn", "notifications", "Iris", "not running yet (no status file)")]
+    out = []
+    if status.get("age_s", 0) > max_age_minutes * 60:
+        out.append(Finding("warn", "notifications", "Iris", f"status is {human_age(status['age_s'] / 3600)} old: "
+                                                             "is the service running?"))
+    if status.get("undelivered"):
+        out.append(Finding("warn", "notifications", "Iris", f"{status['undelivered']} message(s) could not be "
+                                                             "delivered yet"))
+    held = (status.get("decisions") or {}).get("quiet", {}).get("messages", 0)
+    if held:
+        out.append(Finding("info", "notifications", "Iris", f"{held} message(s) held for the morning digest"))
+    return out
+
+
 def hestia(status: dict | None, configured: bool, max_age_minutes: float) -> list[Finding]:
     """Each bad check is a problem and each warning a warning, under the check's own title."""
     if not configured:
