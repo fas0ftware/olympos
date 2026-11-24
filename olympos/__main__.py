@@ -60,8 +60,9 @@ def _notify_summary(s: dict, body: str) -> None:
     import subprocess  # nosec B404
     exe = shutil.which("notify-send")
     if exe:
-        subprocess.run([exe, "-a", "Olympos", "-i", "dialog-information", f"Olympos: the last week ({s['verdict']})",  # nosec B603
-                        body[:900]], check=False, timeout=10)
+        from .history import markup_escape
+        subprocess.run([exe, "-a", "Olympos", "-i", "dialog-information", "--",  # nosec B603
+                        f"Olympos: the last week ({s['verdict']})", markup_escape(body[:900])], check=False, timeout=10)
 
 
 def main(argv=None) -> int:

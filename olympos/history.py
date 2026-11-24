@@ -113,6 +113,12 @@ def got_worse(previous: dict | None, current: dict) -> bool:
     return b > a or (b == a and current["level"] in ("warn", "bad") and current["bad"] > previous.get("bad", 0))
 
 
+def markup_escape(text: str) -> str:
+    """Notification servers read the body as markup, and findings quote what devices and
+    attackers wrote (a device name, an SSH user name): keep it text."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def notify(snap: dict, send=None) -> bool:
     """Desktop notification with the top findings. Returns True when one was shown."""
     top = [f for f in snap["findings"] if f["level"] in ("bad", "warn")][:4]
@@ -125,6 +131,8 @@ def notify(snap: dict, send=None) -> bool:
     if not exe:
         return False
     urgency = "critical" if snap["level"] == "bad" else "normal"
-    subprocess.run([exe, "-a", "Olympos", "-u", urgency, "-i", "dialog-warning", title, body[:900]],  # nosec B603
+    # "--": a finding that starts with "-" must not be read as an option
+    subprocess.run([exe, "-a", "Olympos", "-u", urgency, "-i", "dialog-warning", "--", title,  # nosec B603
+                    markup_escape(body[:900])],
                    check=False, timeout=10)
     return True

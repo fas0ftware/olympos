@@ -513,6 +513,19 @@ def test_got_worse_and_notify():
     assert title == "Olympos: problems" and body.count("•") == 4
 
 
+def test_desktop_notification_keeps_device_text_as_text(monkeypatch):
+    from olympos import history
+    calls = []
+    monkeypatch.setattr(history.shutil, "which", lambda name: "/usr/bin/notify-send")
+    monkeypatch.setattr(history.subprocess, "run", lambda argv, **k: calls.append(argv))
+    snap = {"level": "bad", "findings": [{"level": "bad", "subject": "Themis",
+                                          "text": "SSH login attempt for unknown user '<a href=\"x\">root</a>' & more"}]}
+    assert history.notify(snap)
+    argv = calls[0]
+    assert argv[argv.index("--") + 1] == "Olympos: problems", "options end before the title"
+    assert argv[-1] == "• Themis: SSH login attempt for unknown user '&lt;a href=\"x\"&gt;root&lt;/a&gt;' &amp; more"
+
+
 def test_record_command(tmp_path, monkeypatch):
     from olympos import __main__ as cli, history
     monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
