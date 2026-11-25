@@ -52,7 +52,7 @@
 .item { padding: .55rem 0; border-top: 1px solid var(--line); }
 .item:first-child { border-top: 0; padding-top: 0; }
 .item__head { display: flex; justify-content: space-between; gap: .6rem; align-items: baseline; flex-wrap: wrap; }
-.item__title { font-weight: 600; word-break: break-all; }
+.item__title { font-weight: 600; overflow-wrap: anywhere; }   /* break long paths, but sentences at spaces */
 .item__body { color: var(--muted); font-size: .84rem; margin-top: .15rem; }
 .bar { height: 8px; border-radius: 99px; background: var(--panel-2); overflow: hidden; margin-top: .35rem; }
 .bar > span { display: block; height: 100%; background: var(--good); }
