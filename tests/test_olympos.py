@@ -570,3 +570,53 @@ def test_summary_command(capsys):
     assert capsys.readouterr().out.startswith("Last 24 hours:")
     assert cli.main(["summary", "--demo", "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["verdict"] == "worse"
+
+
+# --- tasks --------------------------------------------------------------------------
+
+def test_findings_become_tasks_with_stable_ids():
+    from olympos import tasks
+    f = [
+        {"level": "bad", "area": "security", "subject": "Firewall", "text": "ufw is off"},
+        {"level": "warn", "area": "network", "subject": "Cerberus", "text": "3 risky port(s) open on the network"},
+        {"level": "warn", "area": "project", "subject": "olympos", "text": "2 commit(s) not pushed"},
+        {"level": "bad", "area": "backup", "subject": "/backup", "text": "last backup failed: disk"},
+        {"level": "info", "area": "project", "subject": "x", "text": "1 uncommitted change(s)"},
+        {"level": "warn", "area": "weird", "subject": "Thing", "text": "odd 5 times"},
+    ]
+    out = {t["id"]: t for t in tasks.from_findings(f, "tr", [{"name": "olympos", "path": "/src/olympos"}])}
+    assert set(out) == {"aegis:firewall", "network:risky-ports", "project:olympos:push", "backup:backup",
+                        "weird:thing:odd-times"}, "info is not a task"
+    assert out["aegis:firewall"]["priority"] == "high" and "ufw enable" in out["aegis:firewall"]["command"]
+    assert out["aegis:firewall"]["title"] == "Güvenlik duvarını aç"
+    assert out["project:olympos:push"]["command"] == "git -C '/src/olympos' push"
+    assert out["backup:backup"]["priority"] == "high"
+    # the count changes, the id does not
+    again = tasks.from_findings([{**f[1], "text": "4 risky port(s) open on the network"}], "en")
+    assert again[0]["id"] == "network:risky-ports" and again[0]["title"] == "Close risky ports on the network"
+
+
+def test_tasks_from_snapshot_include_aegis_warnings_and_merge():
+    from olympos import tasks
+    snap = {"findings": [{"level": "bad", "area": "security", "subject": "Firewall", "text": "off"}],
+            "aegis": {"open": [{"id": "pending-updates", "title": "Security updates waiting", "status": "warn",
+                                "summary": "3 waiting"},
+                               {"id": "firewall", "title": "Firewall", "status": "fail", "summary": "off"}]}}
+    ids = [t["id"] for t in tasks.from_snapshot(snap, "en")]
+    assert sorted(ids) == ["aegis:firewall", "aegis:updates"]
+    for t in tasks.from_snapshot(snap, "tr"):
+        assert 0 < len(t["id"]) <= 80 and t["id"] == t["id"].lower()
+
+
+def test_task_push_refuses_other_machines():
+    from olympos import tasks
+    with pytest.raises(ValueError):
+        tasks.push("http://10.0.0.2:8090", [])
+
+
+def test_tasks_config():
+    s = config.parse({"tasks": {"iris": "http://127.0.0.1:8090", "lang": "tr"}})
+    assert (s.tasks_iris, s.tasks_lang) == ("http://127.0.0.1:8090", "tr")
+    for bad in ({"tasks": {"iris": "http://10.0.0.2:8090"}}, {"tasks": {"lang": "de"}}):
+        with pytest.raises(config.ConfigError):
+            config.parse(bad)
