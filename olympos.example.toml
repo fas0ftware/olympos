@@ -62,3 +62,8 @@ cache_seconds = 300
 # [projects.my-old-tool]
 # stage = "archived"
 # note = "replaced by my-new-tool"
+
+# `olympos tasks --push` sends what to do about the findings to Iris (0.3+).
+# [tasks]
+# iris = "http://127.0.0.1:8090"
+# lang = "en"                 # or "tr"

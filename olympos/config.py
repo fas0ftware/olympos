@@ -50,6 +50,8 @@ class Settings:
     github: bool = True
     github_cache_seconds: int = 300
     projects: dict[str, ProjectNote] = field(default_factory=dict)
+    tasks_iris: str = ""                # Iris address for `olympos tasks --push`, e.g. http://127.0.0.1:8090
+    tasks_lang: str = "en"              # language of the task texts: en | tr
 
 
 def default_path() -> Path:
@@ -125,6 +127,13 @@ def parse(raw: dict) -> Settings:
     g = raw.get("github", {})
     s.github = bool(g.get("enabled", True))
     s.github_cache_seconds = int(g.get("cache_seconds", s.github_cache_seconds))
+    tk = raw.get("tasks", {})
+    s.tasks_iris = str(tk.get("iris", "")).strip()
+    if s.tasks_iris and not s.tasks_iris.startswith(("http://127.0.0.1", "http://localhost", "https://")):
+        raise ConfigError("tasks.iris must be http://127.0.0.1:<port> (or https)")
+    s.tasks_lang = str(tk.get("lang", "en")).strip()
+    if s.tasks_lang not in ("en", "tr"):
+        raise ConfigError('tasks.lang must be "en" or "tr"')
     for name, p in raw.get("projects", {}).items():
         stage = str(p.get("stage", ""))
         if stage and stage not in STAGES:

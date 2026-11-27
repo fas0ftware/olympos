@@ -81,7 +81,11 @@ def main(argv=None) -> int:
     sm.add_argument("--json", action="store_true")
     rec = sub.add_parser("record", help="save a history sample; notify when things got worse (run by a timer)")
     rec.add_argument("--no-notify", action="store_true")
-    for sp in (st, js, sv, rec, sm):
+    tk = sub.add_parser("tasks", help="what to do about the findings; --push sends them to Iris")
+    tk.add_argument("--push", action="store_true", help="send the list to Iris ([tasks] iris in the settings)")
+    tk.add_argument("--json", action="store_true")
+    tk.add_argument("--lang", choices=("en", "tr"), help="default: [tasks] lang")
+    for sp in (st, js, sv, rec, sm, tk):
         sp.add_argument("--demo", action="store_true", help="fictional data, no settings needed")
     args = p.parse_args(argv)
     if getattr(args, "demo", False):
@@ -118,6 +122,32 @@ def main(argv=None) -> int:
         if not args.no_notify and history.got_worse(past[-1] if past else None, current):
             history.notify(snap)
         print(f"recorded: {current['level']}, {current['bad']} problem(s), {current['warn']} warning(s)")
+        return 0
+    if args.cmd == "tasks":
+        from . import tasks
+        st_ = getattr(state, "s", None)
+        lang = args.lang or (st_.tasks_lang if st_ else "en")
+        items = tasks.from_snapshot(snap, lang)
+        if args.json:
+            print(json.dumps(items, indent=2, ensure_ascii=False))
+        else:
+            for t in items:
+                print(f"{t['priority']:<7} {t['title']}  ({t['id']})")
+                if t["command"]:
+                    print(f"        $ {t['command']}")
+            if not items:
+                print("nothing to do")
+        if args.push:
+            url = st_.tasks_iris if st_ else ""
+            if not url:
+                print("olympos: set [tasks] iris = \"http://127.0.0.1:8090\" in the settings", file=sys.stderr)
+                return 2
+            try:
+                r = tasks.push(url, items)
+            except (OSError, ValueError) as exc:
+                print(f"olympos: could not send the tasks to Iris: {exc}", file=sys.stderr)
+                return 1
+            print(f"Iris: {r.get('new', 0)} new, {r.get('reopened', 0)} reopened, {r.get('gone', 0)} resolved")
         return 0
     if args.cmd == "json":
         print(json.dumps(snap, indent=2))
