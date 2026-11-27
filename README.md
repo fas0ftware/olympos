@@ -1,7 +1,7 @@
 # Olympos
 
 [![CI](https://github.com/fas0ftware/olympos/actions/workflows/ci.yml/badge.svg)](https://github.com/fas0ftware/olympos/actions/workflows/ci.yml)
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-0.9.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -30,6 +30,7 @@ versions and roadmaps, on a made-up machine (paths, times, backups and network a
 - [What it shows](#what-it-shows)
 - [Quick start](#quick-start)
 - [History and notifications](#history-and-notifications)
+- [Tasks: what to do next](#tasks-what-to-do-next)
 - [Settings](#settings)
 - [What counts as a problem](#what-counts-as-a-problem)
 - [Security and privacy](#security-and-privacy)
@@ -131,6 +132,39 @@ Still open:
   ...
 ```
 
+## Tasks: what to do next
+
+A finding says what is wrong; a task says what to do about it. `python -m olympos tasks`
+turns every warning and problem into one, with the command when there is one:
+
+```text
+$ python -m olympos tasks --demo
+high    Backup is not working  (backup:media-backup-disk-mnemosyne)
+        $ journalctl --user -u mnemosyne-backup -n 40
+high    Look at a security event  (themis:event:a-new-usb-device-that-types-like-a-keybo)
+default Free space on /media/backup-disk  (disk:media-backup-disk:full)
+        $ du -xh --max-depth=1 /media/backup-disk | sort -h | tail
+default Push olympos  (project:olympos:push)
+        $ git -C '/home/user/projects/olympos' push
+default Restart the computer  (aegis:restart)
+        $ systemctl reboot
+low     Plan disk encryption  (aegis:disk-encryption)
+...
+```
+
+With `--push` the whole list goes to [Iris](https://github.com/fas0ftware/iris) 0.3+, which
+keeps it as a to-do list: urgent tasks are announced at once, the rest arrive together in one
+plan every morning, and a task closes by itself when its finding goes away. Each task keeps
+the same id while its numbers change ("3 risky ports" → "4 risky ports" is still one task).
+Aegis checks that only warn (waiting updates, a kernel switch) become tasks too, although the
+dashboard folds them into one note. `[tasks] lang = "tr"` writes the texts in Turkish.
+
+```bash
+cp contrib/systemd/olympos-tasks.* ~/.config/systemd/user/   # every 30 minutes
+$EDITOR ~/.config/systemd/user/olympos-tasks.service          # WorkingDirectory = your checkout
+systemctl --user daemon-reload && systemctl --user enable --now olympos-tasks.timer
+```
+
 ## Settings
 
 `olympos.toml` describes your machine, so it is in `.gitignore`. The annotated template
@@ -230,6 +264,7 @@ olympos/
 - ~~Laptop events from Themis.~~ Done in 0.6: high events as problems, a panel, events per day in the history.
 - ~~Laptop health from Hestia.~~ Done in 0.7: bad and warning checks as findings, a panel, checks not ok in the history.
 - ~~Notifications from Iris.~~ Done in 0.8: undelivered messages as a warning, a panel, messages per day in the history.
+- ~~Tasks: what to do about each finding, sent to Iris.~~ Done in 0.9.
 - Coverage per project. None of the projects publishes a coverage number yet; this waits until
   their CI does (for example a `coverage.json` artifact).
 

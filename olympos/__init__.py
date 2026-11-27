@@ -1,3 +1,3 @@
 """Olympos: one page that shows how every project and home system is doing."""
 
-__version__ = "0.8.2"
+__version__ = "0.9.0"
