@@ -1,0 +1,8 @@
+[Unit]
+Description=Olympos: send what to do about the findings to Iris
+
+[Service]
+Type=oneshot
+# Edit to where your checkout is (the settings file is found next to it).
+WorkingDirectory=%h/projects/olympos
+ExecStart=/usr/bin/python3 -m olympos tasks --push
